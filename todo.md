@@ -13,12 +13,17 @@
 
 ## Next Steps (Frontend Focus)
 
-- [ ] Add logo in nav bar
-- [ ] Replace system/dark/light with a single theme toggle button
-- [ ] Add column numbers (to match row numbers)
-- [ ] Add "Show Grid" toggle button in nav bar
+- [x] Add column numbers (to match row numbers)
+- [x] Add logo in nav bar
+- [x] Compact nav bar: combine col + row into a single combo input (vertical scroll, like a volume slider)
+- [ ] Add grid lines toggle button
 - [ ] Improve responsiveness for mobile/tablet
-- [ ] Compact nav bar: combine col + row into a single combo input (vertical scroll, like a volume slider)
+- [ ] Replace system/dark/light with a single theme toggle button
+- [ ] Fix white background in dark mode
+- [ ] Support dark/light/system theme
+- [ ] Separate bento grid and card to different components
+- [ ] Resizeable
 
 ---
+
 Feel free to add more ideas or reorder priorities!
