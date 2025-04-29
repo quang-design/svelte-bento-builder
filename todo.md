@@ -16,12 +16,17 @@
 - [x] Add column numbers (to match row numbers)
 - [x] Add logo in nav bar
 - [x] Compact nav bar: combine col + row into a single combo input (vertical scroll, like a volume slider)
+
+- [x] Separate bento grid and card to different components
+
 - [ ] Add grid lines toggle button
+
 - [ ] Improve responsiveness for mobile/tablet
+
 - [ ] Replace system/dark/light with a single theme toggle button
 - [ ] Fix white background in dark mode
 - [ ] Support dark/light/system theme
-- [ ] Separate bento grid and card to different components
+
 - [ ] Resizeable
 
 ---

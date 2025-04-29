@@ -1,13 +1,22 @@
 <script lang="ts">
 	import { MonitorCog, Moon, Sun } from '@lucide/svelte';
 
-	let {
-		cols = $bindable(),
-		rows = $bindable(),
-		cornerRadius = $bindable(),
-		theme = $bindable(),
-		setTheme = $bindable()
-	} = $props();
+	let { cols = $bindable(), rows = $bindable(), cornerRadius = $bindable() } = $props();
+
+	let theme = $state<'system' | 'light' | 'dark'>('system');
+
+	$effect(() => {
+		if (theme === 'system') {
+			document.documentElement.classList.remove('light', 'dark');
+		} else {
+			document.documentElement.classList.toggle('dark', theme === 'dark');
+			document.documentElement.classList.toggle('light', theme === 'light');
+		}
+	});
+
+	function setTheme(t: typeof theme) {
+		theme = t;
+	}
 </script>
 
 <nav
@@ -48,27 +57,16 @@
 		<!-- <span class="w-6 text-center font-mono text-neutral-200">{rows}</span> -->
 
 		<!-- Corner Radius -->
-		<div class="group relative">
-			<span
-				class="border-avocado-500/25 hover:border-avocado-500 rounded-md border-[0.5px] px-2 py-2 text-sm text-neutral-300"
-			>
-				Corner
-				<span class="font-mono text-neutral-200">
-					{cornerRadius}px
-				</span>
-				<div
-					class="border-avocado-500/25 absolute bottom-full left-1/2 z-10 mb-12 hidden -translate-x-1/2 -rotate-90 flex-col rounded-md border bg-neutral-800/50 p-3 shadow-lg group-hover:flex"
-				>
-					<input
-						type="range"
-						min="2"
-						max="48"
-						bind:value={cornerRadius}
-						class="accent-avocado-500 w-24"
-					/>
-				</div>
-			</span>
-		</div>
+		<label for="corner-radius" class="ml-6 text-sm text-neutral-300">Corner</label>
+		<input
+			id="corner-radius"
+			type="number"
+			min="2"
+			max="48"
+			bind:value={cornerRadius}
+			class="accent-avocado-500 border-avocado-500/25 hover:border-avocado-500 rounded-md border-[0.5px] px-2 py-1 font-mono text-neutral-200"
+		/>
+		<!-- <span class="w-10 text-center font-mono text-neutral-200">{cornerRadius}px</span> -->
 	</div>
 
 	<!-- Theme -->
