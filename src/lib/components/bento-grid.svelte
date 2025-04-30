@@ -1,7 +1,15 @@
 <script lang="ts">
 	import BentoCard from './bento-card.svelte';
+	import BentoGridLines from './bento-grid-lines.svelte';
 
-	let { cols = 12, rows = 6, cornerRadius = 'md', gridItems = [], gap = 'gap-4' } = $props();
+	let {
+		cols = 12,
+		rows = 6,
+		cornerRadius = 'md',
+		gridItems = [],
+		gap = 'gap-4',
+		showGridLines = true
+	} = $props();
 </script>
 
 <div class="w-full max-w-6xl">
@@ -16,18 +24,15 @@
 	</div>
 	<!-- Row Numbers Bar + Grid -->
 	<div class="flex w-full">
-		<div class="mr-2 flex w-[2.5rem] flex-col select-none">
+		<div class={`mr-2 flex w-[2.5rem] flex-col select-none ${gap}`}>
 			{#each Array(rows) as _, i}
-				<div
-					class="flex h-full items-center justify-end pr-2 font-mono text-xs text-neutral-500"
-					style={`height: calc((100% - ${(rows - 1) * 1}rem) / ${rows}); min-height: 40px;`}
-				>
+				<div class="flex h-full items-center justify-end pr-2 font-mono text-xs text-neutral-500">
 					{i + 1}
 				</div>
 			{/each}
 		</div>
 		<div
-			class={`relative grid flex-1 transition-all duration-300 ${gap}`}
+			class={`relative grid flex-1 transition-all duration-300 ${gap} rounded-${cornerRadius}`}
 			style={`grid-template-columns: repeat(${cols}, minmax(0, 1fr)); grid-template-rows: repeat(${rows}, minmax(0, 1fr)); min-height: 360px;`}
 		>
 			{#each gridItems as item (item.id)}
@@ -42,6 +47,9 @@
 					{cornerRadius}
 				/>
 			{/each}
+			{#if showGridLines}
+				<BentoGridLines {cols} {rows} {gap} />
+			{/if}
 		</div>
 	</div>
 </div>

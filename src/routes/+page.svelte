@@ -8,6 +8,7 @@
 	let rows = $state(6);
 	let cornerRadius = $state<CornerRadius>('lg');
 	let gap = $state<Gap>(4);
+	let showGridLines = $state<boolean>(true);
 
 	let gridItems = $state([
 		{
@@ -76,12 +77,12 @@
 <main class="flex min-h-screen flex-col bg-neutral-950 transition-colors duration-300">
 	<section class="flex flex-1 flex-col items-center justify-center px-4 py-8">
 		<!-- Bento Grid -->
-		<BentoGrid {cols} {rows} {cornerRadius} {gridItems} gap={`gap-${gap}`} />
+		<BentoGrid {cols} {rows} {cornerRadius} {gridItems} gap={`gap-${gap}`} {showGridLines} />
 	</section>
 </main>
 
 <!-- Bottom Nav Bar -->
-<NavBar bind:cols bind:rows bind:cornerRadius bind:gap />
+<NavBar bind:cols bind:rows bind:cornerRadius bind:gap bind:showGridLines />
 
 <style>
 	:global(html) {

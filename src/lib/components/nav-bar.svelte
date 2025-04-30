@@ -8,13 +8,15 @@
 		rows?: number;
 		cornerRadius?: CornerRadius;
 		gap?: Gap;
+		showGridLines?: boolean;
 	}
 
 	let {
 		cols = $bindable(12),
 		rows = $bindable(6),
 		cornerRadius = $bindable('lg'),
-		gap = $bindable(4)
+		gap = $bindable(4),
+		showGridLines = $bindable(true)
 	}: Props = $props();
 
 	// Tailwind v4 border radius options (ordered smallest to largest)
@@ -108,6 +110,15 @@
 
 	<!-- Theme -->
 	<div class="flex items-center gap-2">
+		<!-- Grid Lines Toggle -->
+		<label
+			class="ml-6 flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 text-sm font-medium transition-colors"
+			style={`background-color: ${showGridLines ? 'var(--color-avocado-500, #a4e366)' : 'rgb(38 38 38 / 1)'}; color: ${showGridLines ? 'black' : '#f4f4f5'};`}
+		>
+			<input type="checkbox" bind:checked={showGridLines} class="peer sr-only" />
+			<span>{showGridLines ? 'Grid On' : 'Grid Off'}</span>
+		</label>
+
 		<button
 			class={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${theme === 'system' ? 'bg-avocado-500 text-black' : 'bg-neutral-800 text-neutral-100'}`}
 			onclick={() => setTheme('system')}
