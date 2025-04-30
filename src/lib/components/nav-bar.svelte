@@ -1,7 +1,35 @@
 <script lang="ts">
 	import { MonitorCog, Moon, Sun } from '@lucide/svelte';
 
-	let { cols = $bindable(), rows = $bindable(), cornerRadius = $bindable() } = $props();
+	import type { CornerRadius, Gap } from '$lib/types/bento';
+
+	interface Props {
+		cols?: number;
+		rows?: number;
+		cornerRadius?: CornerRadius;
+		gap?: Gap;
+	}
+
+	let {
+		cols = $bindable(12),
+		rows = $bindable(6),
+		cornerRadius = $bindable('lg'),
+		gap = $bindable(4)
+	}: Props = $props();
+
+	// Tailwind v4 border radius options (ordered smallest to largest)
+	const cornerOptions = [
+		{ value: 'none', label: 'None' },
+		{ value: 'xs', label: 'XS' },
+		{ value: 'sm', label: 'SM' },
+		{ value: 'md', label: 'MD' },
+		{ value: 'lg', label: 'LG' },
+		{ value: 'xl', label: 'XL' },
+		{ value: '2xl', label: '2XL' },
+		{ value: '3xl', label: '3XL' },
+		{ value: '4xl', label: '4XL' },
+		{ value: 'full', label: 'FULL' }
+	];
 
 	let theme = $state<'system' | 'light' | 'dark'>('system');
 
@@ -42,8 +70,6 @@
 			bind:value={cols}
 			class="accent-avocado-500 border-avocado-500/25 hover:border-avocado-500 rounded-md border-[0.5px] px-2 py-1 font-mono text-neutral-200"
 		/>
-		<!-- <span class="w-6 text-center font-mono text-neutral-200">{cols}</span> -->
-
 		<!-- Rows -->
 		<label for="row-range" class="ml-6 text-sm text-neutral-300">Rows</label>
 		<input
@@ -54,19 +80,30 @@
 			bind:value={rows}
 			class="accent-avocado-500 border-avocado-500/25 hover:border-avocado-500 rounded-md border-[0.5px] px-2 py-1 font-mono text-neutral-200"
 		/>
-		<!-- <span class="w-6 text-center font-mono text-neutral-200">{rows}</span> -->
-
 		<!-- Corner Radius -->
-		<label for="corner-radius" class="ml-6 text-sm text-neutral-300">Corner</label>
-		<input
-			id="corner-radius"
-			type="number"
-			min="2"
-			max="48"
+		<label for="corner-radius-select" class="ml-6 text-sm text-neutral-300">Corner</label>
+		<select
+			id="corner-radius-select"
 			bind:value={cornerRadius}
-			class="accent-avocado-500 border-avocado-500/25 hover:border-avocado-500 rounded-md border-[0.5px] px-2 py-1 font-mono text-neutral-200"
-		/>
-		<!-- <span class="w-10 text-center font-mono text-neutral-200">{cornerRadius}px</span> -->
+			class="rounded-md bg-neutral-800 px-2 py-1 font-mono text-neutral-200"
+		>
+			{#each cornerOptions as opt}
+				<option value={opt.value}>{opt.label}</option>
+			{/each}
+		</select>
+		<!-- Gap -->
+		<label for="gap-select" class="ml-6 text-sm text-neutral-300">Gap</label>
+		<select
+			id="gap-select"
+			bind:value={gap}
+			class="rounded-md bg-neutral-800 px-2 py-1 font-mono text-neutral-200"
+		>
+			{#each Array(9)
+				.fill(0)
+				.map((_, i) => i) as n}
+				<option value={n}>{n === 0 ? '0' : n}</option>
+			{/each}
+		</select>
 	</div>
 
 	<!-- Theme -->

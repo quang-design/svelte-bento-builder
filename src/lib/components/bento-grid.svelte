@@ -1,7 +1,7 @@
 <script lang="ts">
 	import BentoCard from './bento-card.svelte';
 
-	let { cols = 12, rows = 6, cornerRadius = 12, gridItems = [] } = $props();
+	let { cols = 12, rows = 6, cornerRadius = 'md', gridItems = [], gap = 'gap-4' } = $props();
 </script>
 
 <div class="w-full max-w-6xl">
@@ -27,7 +27,7 @@
 			{/each}
 		</div>
 		<div
-			class="relative grid flex-1 gap-4 transition-all duration-300"
+			class={`relative grid flex-1 transition-all duration-300 ${gap}`}
 			style={`grid-template-columns: repeat(${cols}, minmax(0, 1fr)); grid-template-rows: repeat(${rows}, minmax(0, 1fr)); min-height: 360px;`}
 		>
 			{#each gridItems as item (item.id)}
