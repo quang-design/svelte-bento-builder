@@ -1,14 +1,13 @@
 <script lang="ts">
 	import NavBar from '$lib/components/nav-bar.svelte';
 	import BentoGrid from '$lib/components/bento-grid.svelte';
-
 	import type { CornerRadius, Gap } from '$lib/types/bento';
 
 	let cols = $state(12);
 	let rows = $state(6);
 	let cornerRadius = $state<CornerRadius>('lg');
 	let gap = $state<Gap>(4);
-	let showGridLines = $state<boolean>(true);
+	let showGridLines = $state<boolean>(false);
 
 	let gridItems = $state([
 		{
@@ -77,7 +76,7 @@
 <main class="flex min-h-screen flex-col bg-neutral-950 transition-colors duration-300">
 	<section class="flex flex-1 flex-col items-center justify-center px-4 py-8">
 		<!-- Bento Grid -->
-		<BentoGrid {cols} {rows} {cornerRadius} {gridItems} gap={`gap-${gap}`} {showGridLines} />
+		<BentoGrid {cols} {rows} {cornerRadius} {gridItems} {gap} {showGridLines} />
 	</section>
 </main>
 

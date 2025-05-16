@@ -1,55 +1,37 @@
 <script lang="ts">
-	import BentoCard from './bento-card.svelte';
-	import BentoGridLines from './bento-grid-lines.svelte';
+	import BentoCard from '$lib/components/bento-card.svelte';
+	import BentoGridLines from '$lib/components/bento-grid-lines.svelte';
+	import type { GridItem, CornerRadius, Gap } from '$lib/types/bento';
+
+	type Props = {
+		cols?: number;
+		rows?: number;
+		cornerRadius?: CornerRadius;
+		gridItems?: GridItem[];
+		gap?: Gap;
+		showGridLines?: boolean;
+	};
 
 	let {
 		cols = 12,
 		rows = 6,
 		cornerRadius = 'md',
 		gridItems = [],
-		gap = 'gap-4',
+		gap = 4,
 		showGridLines = true
-	} = $props();
+	}: Props = $props();
 </script>
 
-<div class="w-full max-w-6xl">
-	<!-- Col Numbers Bar on Top -->
-	<div class="mb-2 flex w-full select-none">
-		<div class="w-[2.5rem]"></div>
-		{#each Array(cols) as _, i}
-			<div class="flex h-8 flex-1 items-center justify-center font-mono text-xs text-neutral-500">
-				{i + 1}
-			</div>
+<div class="relative flex h-full w-full max-w-6xl">
+	{#if showGridLines}
+		<BentoGridLines {cols} {rows} {gap} />
+	{/if}
+	<div
+		class="grid min-h-80 w-full gap-2"
+		style="grid-template-columns: repeat({cols}, minmax(0, 1fr)); grid-template-rows: repeat({rows}, minmax(0, 1fr));"
+	>
+		{#each gridItems as item (item.id)}
+			<BentoCard {item} {cornerRadius} />
 		{/each}
-	</div>
-	<!-- Row Numbers Bar + Grid -->
-	<div class="flex w-full">
-		<div class={`mr-2 flex w-[2.5rem] flex-col select-none ${gap}`}>
-			{#each Array(rows) as _, i}
-				<div class="flex h-full items-center justify-end pr-2 font-mono text-xs text-neutral-500">
-					{i + 1}
-				</div>
-			{/each}
-		</div>
-		<div
-			class={`relative grid flex-1 transition-all duration-300 ${gap} rounded-${cornerRadius}`}
-			style={`grid-template-columns: repeat(${cols}, minmax(0, 1fr)); grid-template-rows: repeat(${rows}, minmax(0, 1fr)); min-height: 360px;`}
-		>
-			{#each gridItems as item (item.id)}
-				<BentoCard
-					content={item.content}
-					color={item.color}
-					text={item.text}
-					col={item.col}
-					row={item.row}
-					colSpan={item.colSpan}
-					rowSpan={item.rowSpan}
-					{cornerRadius}
-				/>
-			{/each}
-			{#if showGridLines}
-				<BentoGridLines {cols} {rows} {gap} />
-			{/if}
-		</div>
 	</div>
 </div>
