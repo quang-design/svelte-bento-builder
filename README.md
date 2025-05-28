@@ -1,38 +1,73 @@
-# sv
+# Svelte Bento Builder
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A modern, customizable Bento grid builder app built with SvelteKit 5, Tailwind CSS v4, TypeScript, and Supabase. Design, edit, and manage beautiful bento layouts with a clean, responsive UI and the latest Svelte 5 runes syntax.
 
-## Creating a project
+![Screenshot](./screenshot.png)
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Features
 
-```bash
-# create a new project in the current directory
-npx sv create
+- ⚡ Interactive bento grid with adjustable columns, rows, and gap
+- 🎨 Live theme switching (light/dark/system)
+- 🧩 Drag & resize grid cards (planned)
+- 🗑️ Add & delete cards (planned)
+- 📏 Adjustable corner radius and grid lines
+- 💡 Responsive design for mobile/tablet
+- 🧑‍💻 Built with Svelte 5 runes syntax & SSR
+- 🎨 Styled with Tailwind CSS v4 using CSS variables
+- 🔒 Type-safe with TypeScript
+- ☁️ Supabase backend ready (optional)
 
-# create a new project in my-app
-npx sv create my-app
-```
+## Tech Stack
 
-## Developing
+- [SvelteKit 5](https://kit.svelte.dev/) (with runes syntax, SSR)
+- [Tailwind CSS v4](https://tailwindcss.com/) (via `@theme` & CSS variables)
+- [TypeScript](https://www.typescriptlang.org/)
+- [Supabase](https://supabase.com/) (optional, for backend/db)
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Getting Started
 
-```bash
-npm run dev
+1. **Clone the repo:**
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+   ```bash
+   git clone https://github.com/quang-design/svelte-bento-builder.git
+   cd svelte-bento-builder
+   ```
 
-## Building
+2. **Install dependencies:**
 
-To create a production version of your app:
+   ```bash
+   npm install
+   # or pnpm install / yarn
+   ```
 
-```bash
-npm run build
-```
+3. **Run the development server:**
 
-You can preview the production build with `npm run preview`.
+   ```bash
+   npm run dev
+   # Visit http://localhost:5173 (or shown URL)
+   ```
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+4. **Build for production:**
+
+   ```bash
+   npm run build
+   npm run preview
+   ```
+
+## Usage
+
+- Adjust grid columns, rows, gap, and corner radius from the bottom nav
+- Toggle grid lines and theme
+- Add, delete, drag, and resize cards (see roadmap for status)
+
+## Contributing
+
+PRs, issues, and suggestions welcome! Please open an issue or submit a pull request.
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+> Made with ❤️ using Svelte 5, Tailwind v4, and TypeScript.
