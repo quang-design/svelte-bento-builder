@@ -31,26 +31,19 @@
 	): { items: GridItem[]; newRows: number } {
 		if (oldCols === newCols) return { items, newRows: oldRows };
 
-		// Clamp colSpan, scale rowSpan to preserve total grid area (colSpan × rowSpan)
+		// Clamp colSpan to fit new grid, keep rowSpan as-is
 		const scaled = items.map((item) => {
 			const origCol = item._origCol ?? item.col ?? 1;
 			const origColSpan = item._origColSpan ?? item.colSpan ?? 1;
 			const origRow = item._origRow ?? item.row ?? 1;
 			const origRowSpan = item._origRowSpan ?? item.rowSpan ?? 1;
 
-			let newColSpan = Math.min(origColSpan, newCols);
-			// If the card leaves too little remaining space, expand to full width
-			if (newColSpan > newCols / 2 && newColSpan < newCols) {
-				newColSpan = newCols;
-			}
-			// Preserve area: origColSpan * origRowSpan = newColSpan * newRowSpan
-			const origArea = origColSpan * origRowSpan;
-			const newRowSpan = Math.max(1, Math.round(origArea / newColSpan));
+			const newColSpan = Math.min(origColSpan, newCols);
 
 			return {
 				...item,
 				colSpan: newColSpan,
-				rowSpan: newRowSpan,
+				rowSpan: origRowSpan,
 				_origCol: origCol,
 				_origColSpan: origColSpan,
 				_origRow: origRow,
