@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { MonitorCog, Moon, Sun } from '@lucide/svelte';
-
+	import { Plus, Settings, X } from '@lucide/svelte';
 	import type { CornerRadius, Gap } from '$lib/types/bento';
 
 	interface Props {
@@ -9,6 +8,7 @@
 		cornerRadius?: CornerRadius;
 		gap?: Gap;
 		showGridLines?: boolean;
+		onAddCard?: () => void;
 	}
 
 	let {
@@ -16,10 +16,10 @@
 		rows = $bindable(6),
 		cornerRadius = $bindable('lg'),
 		gap = $bindable(4),
-		showGridLines = $bindable(true)
+		showGridLines = $bindable(true),
+		onAddCard = undefined
 	}: Props = $props();
 
-	// Tailwind v4 border radius options (ordered smallest to largest)
 	const cornerOptions = [
 		{ value: 'none', label: 'None' },
 		{ value: 'xs', label: 'XS' },
@@ -34,6 +34,7 @@
 	];
 
 	let theme = $state<'system' | 'light' | 'dark'>('system');
+	let settingsOpen = $state(false);
 
 	$effect(() => {
 		if (theme === 'system') {
@@ -43,99 +44,234 @@
 			document.documentElement.classList.toggle('light', theme === 'light');
 		}
 	});
-
-	function setTheme(t: typeof theme) {
-		theme = t;
-	}
 </script>
 
+<!-- Mobile navbar: logo + add + settings trigger -->
 <nav
-	class="fixed bottom-0 left-0 z-50 flex w-full items-center justify-between border-t border-neutral-800 bg-neutral-900/80 px-4 py-3 backdrop-blur-md"
+	class="fixed bottom-0 left-0 z-50 w-full border-t border-neutral-800 bg-neutral-900/80 px-3 py-2 backdrop-blur-md sm:px-4 sm:py-3"
 >
-	<!-- Logo -->
-	<a
-		href="/"
-		class="font-display text-avocado-500 hover:text-avocado-400 mr-8 flex items-center gap-2 text-lg font-bold tracking-tight transition-colors select-none"
-		aria-label="WorldKit Home"
-	>
-		<span class="drop-shadow-sm">WorldKit</span>
-	</a>
-	<!-- Bento Grid Settings -->
-	<div class="flex items-center gap-4">
-		<!-- Columns -->
-		<label for="col-range" class="text-sm text-neutral-300">Columns</label>
-		<input
-			id="col-range"
-			type="number"
-			min="2"
-			max="24"
-			bind:value={cols}
-			class="accent-avocado-500 border-avocado-500/25 hover:border-avocado-500 rounded-md border-[0.5px] px-2 py-1 font-mono text-neutral-200"
-		/>
-		<!-- Rows -->
-		<label for="row-range" class="ml-6 text-sm text-neutral-300">Rows</label>
-		<input
-			id="row-range"
-			type="number"
-			min="2"
-			max="12"
-			bind:value={rows}
-			class="accent-avocado-500 border-avocado-500/25 hover:border-avocado-500 rounded-md border-[0.5px] px-2 py-1 font-mono text-neutral-200"
-		/>
-		<!-- Corner Radius -->
-		<label for="corner-radius-select" class="ml-6 text-sm text-neutral-300">Corner</label>
-		<select
-			id="corner-radius-select"
-			bind:value={cornerRadius}
-			class="rounded-md bg-neutral-800 px-2 py-1 font-mono text-neutral-200"
+	<!-- Mobile layout -->
+	<div class="flex items-center justify-between sm:hidden">
+		<a
+			href="/"
+			class="font-display text-avocado-500 text-lg font-bold tracking-tight select-none"
+			aria-label="WorldKit Home"
 		>
-			{#each cornerOptions as opt}
-				<option value={opt.value}>{opt.label}</option>
-			{/each}
-		</select>
-		<!-- Gap -->
-		<label for="gap-select" class="ml-6 text-sm text-neutral-300">Gap</label>
-		<select
-			id="gap-select"
-			bind:value={gap}
-			class="rounded-md bg-neutral-800 px-2 py-1 font-mono text-neutral-200"
-		>
-			{#each Array(9)
-				.fill(0)
-				.map((_, i) => i) as n}
-				<option value={n}>{n === 0 ? '0' : n}</option>
-			{/each}
-		</select>
+			WorldKit
+		</a>
+
+		<div class="flex items-center gap-2">
+			<!-- Circle Add Button -->
+			<button
+				class="bg-avocado-500 hover:bg-avocado-400 flex h-9 w-9 items-center justify-center rounded-full text-black transition-colors"
+				onclick={() => onAddCard?.()}
+				aria-label="Add new card"
+			>
+				<Plus class="h-5 w-5" />
+			</button>
+
+			<!-- Settings Toggle -->
+			<button
+				class="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 text-neutral-300 transition-colors hover:bg-neutral-700"
+				onclick={() => (settingsOpen = !settingsOpen)}
+				aria-label="Open settings"
+			>
+				{#if settingsOpen}
+					<X class="h-5 w-5" />
+				{:else}
+					<Settings class="h-5 w-5" />
+				{/if}
+			</button>
+		</div>
 	</div>
 
-	<!-- Theme -->
-	<div class="flex items-center gap-2">
-		<!-- Grid Lines Toggle -->
-		<label
-			class="ml-6 flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 text-sm font-medium transition-colors"
-			style={`background-color: ${showGridLines ? 'var(--color-avocado-500, #a4e366)' : 'rgb(38 38 38 / 1)'}; color: ${showGridLines ? 'black' : '#f4f4f5'};`}
+	<!-- Desktop layout (unchanged) -->
+	<div class="hidden flex-wrap items-center justify-center gap-3 sm:flex">
+		<a
+			href="/"
+			class="font-display text-avocado-500 hover:text-avocado-400 text-lg font-bold tracking-tight transition-colors select-none"
+			aria-label="WorldKit Home"
 		>
-			<input type="checkbox" bind:checked={showGridLines} class="peer sr-only" />
+			WorldKit
+		</a>
+
+		<button
+			class="bg-avocado-500 hover:bg-avocado-400 flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium text-black transition-colors"
+			onclick={() => onAddCard?.()}
+			aria-label="Add new card"
+		>
+			<Plus class="h-4 w-4" />
+			<span>Add</span>
+		</button>
+
+		<div class="flex items-center gap-1">
+			<label for="col-range" class="text-sm text-neutral-400">Col</label>
+			<input
+				id="col-range"
+				type="number"
+				min="2"
+				max="24"
+				bind:value={cols}
+				class="border-avocado-500/25 hover:border-avocado-500 w-14 rounded border-[0.5px] bg-transparent px-2 py-1 font-mono text-sm text-neutral-200"
+			/>
+		</div>
+
+		<div class="flex items-center gap-1">
+			<label for="row-range" class="text-sm text-neutral-400">Row</label>
+			<input
+				id="row-range"
+				type="number"
+				min="2"
+				max="12"
+				bind:value={rows}
+				class="border-avocado-500/25 hover:border-avocado-500 w-14 rounded border-[0.5px] bg-transparent px-2 py-1 font-mono text-sm text-neutral-200"
+			/>
+		</div>
+
+		<div class="flex items-center gap-1">
+			<label for="corner-radius-select" class="text-sm text-neutral-400">Radius</label>
+			<select
+				id="corner-radius-select"
+				bind:value={cornerRadius}
+				class="rounded bg-neutral-800 px-2 py-1 font-mono text-sm text-neutral-200"
+			>
+				{#each cornerOptions as opt}
+					<option value={opt.value}>{opt.label}</option>
+				{/each}
+			</select>
+		</div>
+
+		<div class="flex items-center gap-1">
+			<label for="gap-select" class="text-sm text-neutral-400">Gap</label>
+			<select
+				id="gap-select"
+				bind:value={gap}
+				class="rounded bg-neutral-800 px-2 py-1 font-mono text-sm text-neutral-200"
+			>
+				{#each Array(9).fill(0).map((_, i) => i) as n}
+					<option value={n}>{n}</option>
+				{/each}
+			</select>
+		</div>
+
+		<label
+			class="flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-sm font-medium transition-colors"
+			style="background-color: {showGridLines ? 'var(--color-avocado-500, #a4e366)' : 'rgb(38 38 38)'}; color: {showGridLines ? 'black' : '#f4f4f5'};"
+		>
+			<input type="checkbox" bind:checked={showGridLines} class="sr-only" />
 			<span>{showGridLines ? 'Grid On' : 'Grid Off'}</span>
 		</label>
 
-		<button
-			class={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${theme === 'system' ? 'bg-avocado-500 text-black' : 'bg-neutral-800 text-neutral-100'}`}
-			onclick={() => setTheme('system')}
-		>
-			<MonitorCog class="h-5 w-5" />
-		</button>
-		<button
-			class={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${theme === 'light' ? 'bg-avocado-500 text-black' : 'bg-neutral-800 text-neutral-100'}`}
-			onclick={() => setTheme('light')}
-		>
-			<Sun class="h-5 w-5" />
-		</button>
-		<button
-			class={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${theme === 'dark' ? 'bg-avocado-500 text-black' : 'bg-neutral-800 text-neutral-100'}`}
-			onclick={() => setTheme('dark')}
-		>
-			<Moon class="h-5 w-5" />
-		</button>
+		<div class="flex items-center gap-1">
+			<label for="theme-select" class="text-sm text-neutral-400">Theme</label>
+			<select
+				id="theme-select"
+				bind:value={theme}
+				class="rounded bg-neutral-800 px-2 py-1 font-mono text-sm text-neutral-200"
+			>
+				<option value="system">System</option>
+				<option value="light">Light</option>
+				<option value="dark">Dark</option>
+			</select>
+		</div>
 	</div>
 </nav>
+
+<!-- Mobile Settings Popup -->
+{#if settingsOpen}
+	<!-- Backdrop -->
+	<button
+		class="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm sm:hidden"
+		onclick={() => (settingsOpen = false)}
+		aria-label="Close settings"
+	></button>
+
+	<!-- Settings Panel -->
+	<div
+		class="fixed bottom-[60px] left-3 right-3 z-[70] rounded-2xl border border-neutral-800 bg-neutral-900/95 p-4 shadow-2xl backdrop-blur-md sm:hidden"
+	>
+		<h3 class="mb-3 text-sm font-semibold text-neutral-300">Settings</h3>
+
+		<div class="grid grid-cols-2 gap-3">
+			<!-- Columns -->
+			<div class="flex flex-col gap-1">
+				<label for="mobile-col" class="text-xs text-neutral-400">Columns</label>
+				<input
+					id="mobile-col"
+					type="number"
+					min="2"
+					max="24"
+					bind:value={cols}
+					class="border-avocado-500/25 hover:border-avocado-500 rounded border-[0.5px] bg-transparent px-2 py-1.5 font-mono text-sm text-neutral-200"
+				/>
+			</div>
+
+			<!-- Rows -->
+			<div class="flex flex-col gap-1">
+				<label for="mobile-row" class="text-xs text-neutral-400">Rows</label>
+				<input
+					id="mobile-row"
+					type="number"
+					min="2"
+					max="12"
+					bind:value={rows}
+					class="border-avocado-500/25 hover:border-avocado-500 rounded border-[0.5px] bg-transparent px-2 py-1.5 font-mono text-sm text-neutral-200"
+				/>
+			</div>
+
+			<!-- Corner Radius -->
+			<div class="flex flex-col gap-1">
+				<label for="mobile-radius" class="text-xs text-neutral-400">Radius</label>
+				<select
+					id="mobile-radius"
+					bind:value={cornerRadius}
+					class="rounded bg-neutral-800 px-2 py-1.5 font-mono text-sm text-neutral-200"
+				>
+					{#each cornerOptions as opt}
+						<option value={opt.value}>{opt.label}</option>
+					{/each}
+				</select>
+			</div>
+
+			<!-- Gap -->
+			<div class="flex flex-col gap-1">
+				<label for="mobile-gap" class="text-xs text-neutral-400">Gap</label>
+				<select
+					id="mobile-gap"
+					bind:value={gap}
+					class="rounded bg-neutral-800 px-2 py-1.5 font-mono text-sm text-neutral-200"
+				>
+					{#each Array(9).fill(0).map((_, i) => i) as n}
+						<option value={n}>{n}</option>
+					{/each}
+				</select>
+			</div>
+
+			<!-- Theme -->
+			<div class="flex flex-col gap-1">
+				<label for="mobile-theme" class="text-xs text-neutral-400">Theme</label>
+				<select
+					id="mobile-theme"
+					bind:value={theme}
+					class="rounded bg-neutral-800 px-2 py-1.5 font-mono text-sm text-neutral-200"
+				>
+					<option value="system">System</option>
+					<option value="light">Light</option>
+					<option value="dark">Dark</option>
+				</select>
+			</div>
+
+			<!-- Grid Lines -->
+			<div class="flex flex-col gap-1">
+				<span class="text-xs text-neutral-400">Grid Lines</span>
+				<label
+					class="flex cursor-pointer items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors"
+					style="background-color: {showGridLines ? 'var(--color-avocado-500, #a4e366)' : 'rgb(38 38 38)'}; color: {showGridLines ? 'black' : '#f4f4f5'};"
+				>
+					<input type="checkbox" bind:checked={showGridLines} class="sr-only" />
+					<span>{showGridLines ? 'On' : 'Off'}</span>
+				</label>
+			</div>
+		</div>
+	</div>
+{/if}

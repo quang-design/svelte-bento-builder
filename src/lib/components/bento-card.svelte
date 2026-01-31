@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { X } from '@lucide/svelte';
 	import type { GridItem, CornerRadius } from '$lib/types/bento';
 
 	type Props = {
@@ -8,6 +9,8 @@
 		rows?: number;
 		gridItems?: GridItem[];
 		onSwap?: (item1: GridItem, item2: GridItem) => void;
+		onDelete?: (id: number) => void;
+		onUpdateItem?: (item: GridItem) => void;
 	};
 
 	let {
@@ -16,10 +19,11 @@
 		cols = 12,
 		rows = 6,
 		gridItems = [],
-		onSwap = undefined
+		onSwap = undefined,
+		onDelete = undefined,
+		onUpdateItem = undefined
 	}: Props = $props();
 
-	// Initialize item properties if undefined
 	item.col = item.col ?? 1;
 	item.row = item.row ?? 1;
 	item.colSpan = item.colSpan ?? 1;
@@ -27,6 +31,8 @@
 
 	let isDragging = $state(false);
 	let isResizing = $state(false);
+	let isEditing = $state(false);
+	let isSelected = $state(false);
 	let resizeHandle = $state<null | 'se' | 'sw' | 'ne' | 'nw'>(null);
 	let startX = $state(0);
 	let startY = $state(0);
@@ -35,252 +41,368 @@
 	let startColSpan = $state(0);
 	let startRowSpan = $state(0);
 	let originalZIndex = $state<string>('');
+	let editText = $state('');
 
-	// Get the grid cell size dynamically
+	// Touch drag requires a hold before dragging to avoid interfering with page scroll
+	let touchHoldTimer: ReturnType<typeof setTimeout> | null = null;
+	let touchDragReady = $state(false);
+	let pendingTouchEvent: TouchEvent | null = null;
+	const TOUCH_HOLD_MS = 200;
+
 	function getCellSize() {
-		// We need to find the grid container; it might be the .grid class or we can try the parent of this card
-		const gridContainer =
-			document.querySelector('.grid') || document.querySelector('[style*="grid-template-columns"]');
-
+		const gridContainer = document.querySelector('[data-bento-grid]');
 		if (!gridContainer) return { cellWidth: 0, cellHeight: 0 };
-
-		const gridWidth = gridContainer.clientWidth;
-		const gridHeight = gridContainer.clientHeight;
-
-		const cellWidth = gridWidth / cols;
-		const cellHeight = gridHeight / rows;
-
-		return { cellWidth, cellHeight };
+		const style = getComputedStyle(gridContainer);
+		const gapCol = parseFloat(style.columnGap) || 0;
+		const gapRow = parseFloat(style.rowGap) || 0;
+		return {
+			cellWidth: (gridContainer.clientWidth + gapCol) / cols,
+			cellHeight: (gridContainer.clientHeight + gapRow) / rows
+		};
 	}
 
-	// Helper function to make sure we have numerical values for all grid properties
 	function ensureNumberValue(value: number | undefined): number {
 		return typeof value === 'number' ? value : 1;
 	}
 
-	// Find a card at a specific grid position
 	function findCardAtPosition(col: number, row: number): GridItem | undefined {
 		return gridItems.find((gridItem) => {
-			if (gridItem.id === item.id) return false; // Skip the current card
-
+			if (gridItem.id === item.id) return false;
 			const itemCol = ensureNumberValue(gridItem.col);
 			const itemRow = ensureNumberValue(gridItem.row);
 			const itemColSpan = ensureNumberValue(gridItem.colSpan);
 			const itemRowSpan = ensureNumberValue(gridItem.rowSpan);
-
-			// Check if the position is within the card's area
-			const isInCol = col >= itemCol && col < itemCol + itemColSpan;
-			const isInRow = row >= itemRow && row < itemRow + itemRowSpan;
-
-			return isInCol && isInRow;
+			return col >= itemCol && col < itemCol + itemColSpan && row >= itemRow && row < itemRow + itemRowSpan;
 		});
 	}
 
-	// Handle mouse down for dragging
-	function startDrag(e: MouseEvent) {
-		// Don't start drag if clicking on a resize handle
-		if (resizeHandle) return;
-
-		e.preventDefault();
-		isDragging = true;
-
-		// Store the original z-index
-		const card = e.currentTarget as HTMLElement;
-		originalZIndex = card.style.zIndex || '10';
-		// Bring the card to the front while dragging
-		card.style.zIndex = '100';
-
-		// Store initial position as confirmed numbers
-		startX = e.clientX;
-		startY = e.clientY;
-		startCol = ensureNumberValue(item.col);
-		startRow = ensureNumberValue(item.row);
-
-		// Add global event listeners
-		window.addEventListener('mousemove', handleMouseMove);
-		window.addEventListener('mouseup', stopDragResize);
+	// Unified pointer helpers to support both mouse and touch
+	function getPointerXY(e: MouseEvent | TouchEvent): { x: number; y: number } {
+		if ('touches' in e) {
+			const touch = e.touches[0] || e.changedTouches[0];
+			return { x: touch.clientX, y: touch.clientY };
+		}
+		return { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
 	}
 
-	// Handle mouse down for resizing
-	function startResize(e: MouseEvent, handle: 'se' | 'sw' | 'ne' | 'nw') {
+	function startDrag(e: MouseEvent | TouchEvent) {
+		if (resizeHandle || isEditing) return;
+
+		// For touch: don't preventDefault immediately — let the browser scroll.
+		// Instead, start a hold timer. Drag only activates after holding.
+		if ('touches' in e) {
+			pendingTouchEvent = e;
+			const { x, y } = getPointerXY(e);
+			startX = x;
+			startY = y;
+			touchDragReady = false;
+			touchHoldTimer = setTimeout(() => {
+				touchDragReady = true;
+				activateDrag(pendingTouchEvent!);
+			}, TOUCH_HOLD_MS);
+			// Listen for touchmove to cancel hold if user scrolls
+			window.addEventListener('touchmove', cancelTouchHoldOnScroll, { passive: true });
+			window.addEventListener('touchend', cancelTouchHold);
+			return;
+		}
+
+		e.preventDefault();
+		activateDrag(e);
+	}
+
+	function cancelTouchHoldOnScroll(e: TouchEvent) {
+		if (touchDragReady) return; // already activated
+		const { x, y } = getPointerXY(e);
+		const dist = Math.abs(x - startX) + Math.abs(y - startY);
+		if (dist > 10) {
+			cancelTouchHold();
+		}
+	}
+
+	function cancelTouchHold() {
+		if (touchHoldTimer) {
+			clearTimeout(touchHoldTimer);
+			touchHoldTimer = null;
+		}
+		pendingTouchEvent = null;
+		window.removeEventListener('touchmove', cancelTouchHoldOnScroll);
+		window.removeEventListener('touchend', cancelTouchHold);
+	}
+
+	function activateDrag(e: MouseEvent | TouchEvent) {
+		isDragging = true;
+		isSelected = true;
+		const card = document.querySelector(`[data-id="${item.id}"]`) as HTMLElement;
+		if (card) {
+			originalZIndex = card.style.zIndex || '10';
+			card.style.zIndex = '100';
+		}
+		const { x, y } = getPointerXY(e);
+		startX = x;
+		startY = y;
+		startCol = ensureNumberValue(item.col);
+		startRow = ensureNumberValue(item.row);
+		window.removeEventListener('touchmove', cancelTouchHoldOnScroll);
+		window.removeEventListener('touchend', cancelTouchHold);
+		window.addEventListener('mousemove', handlePointerMove);
+		window.addEventListener('mouseup', stopDragResize);
+		window.addEventListener('touchmove', handlePointerMove, { passive: false });
+		window.addEventListener('touchend', stopDragResize);
+	}
+
+	function startResize(e: MouseEvent | TouchEvent, handle: 'se' | 'sw' | 'ne' | 'nw') {
 		e.preventDefault();
 		e.stopPropagation();
 		isResizing = true;
 		resizeHandle = handle;
-
-		// Store initial values as confirmed numbers
-		startX = e.clientX;
-		startY = e.clientY;
+		const { x, y } = getPointerXY(e);
+		startX = x;
+		startY = y;
 		startColSpan = ensureNumberValue(item.colSpan);
 		startRowSpan = ensureNumberValue(item.rowSpan);
 		startCol = ensureNumberValue(item.col);
 		startRow = ensureNumberValue(item.row);
-
-		// Add global event listeners
-		window.addEventListener('mousemove', handleMouseMove);
+		window.addEventListener('mousemove', handlePointerMove);
 		window.addEventListener('mouseup', stopDragResize);
+		window.addEventListener('touchmove', handlePointerMove, { passive: false });
+		window.addEventListener('touchend', stopDragResize);
 	}
 
-	// Handle mouse move for both dragging and resizing
-	function handleMouseMove(e: MouseEvent) {
+	function handlePointerMove(e: MouseEvent | TouchEvent) {
+		e.preventDefault();
 		const { cellWidth, cellHeight } = getCellSize();
 		if (cellWidth === 0 || cellHeight === 0) return;
-
-		const deltaX = Math.round((e.clientX - startX) / cellWidth);
-		const deltaY = Math.round((e.clientY - startY) / cellHeight);
+		const { x, y } = getPointerXY(e);
+		const deltaX = Math.round((x - startX) / cellWidth);
+		const deltaY = Math.round((y - startY) / cellHeight);
 
 		if (isDragging) {
-			// Update position ensuring we don't go out of bounds
 			const itemColSpan = ensureNumberValue(item.colSpan);
 			const itemRowSpan = ensureNumberValue(item.rowSpan);
-			const newCol = Math.max(1, Math.min(cols - itemColSpan + 1, startCol + deltaX));
-			const newRow = Math.max(1, Math.min(rows - itemRowSpan + 1, startRow + deltaY));
-
-			// Check if we're hovering over another card
-			const hoverCard = findCardAtPosition(newCol, newRow);
-
-			item.col = newCol;
-			item.row = newRow;
+			item.col = Math.max(1, Math.min(cols - itemColSpan + 1, startCol + deltaX));
+			item.row = Math.max(1, startRow + deltaY);
 		} else if (isResizing) {
 			switch (resizeHandle) {
-				case 'se': // Southeast (bottom-right)
-					const itemColSE = ensureNumberValue(item.col);
-					const itemRowSE = ensureNumberValue(item.row);
-					const newColSpanSE = Math.max(1, Math.min(cols - itemColSE + 1, startColSpan + deltaX));
-					const newRowSpanSE = Math.max(1, Math.min(rows - itemRowSE + 1, startRowSpan + deltaY));
-					item.colSpan = newColSpanSE;
-					item.rowSpan = newRowSpanSE;
+				case 'se': {
+					const ic = ensureNumberValue(item.col);
+					item.colSpan = Math.max(1, Math.min(cols - ic + 1, startColSpan + deltaX));
+					item.rowSpan = Math.max(1, startRowSpan + deltaY);
 					break;
-
-				case 'sw': // Southwest (bottom-left)
-					// For SW, as we move left, we decrease the column and increase the span
-					const itemRowSW = ensureNumberValue(item.row);
-					const newColSpanSW = Math.max(1, startColSpan - deltaX);
-					const newColSW = Math.max(1, Math.min(cols - newColSpanSW + 1, startCol + deltaX));
-					const newRowSpanSW = Math.max(1, Math.min(rows - itemRowSW + 1, startRowSpan + deltaY));
-
-					item.col = newColSW;
-					item.colSpan = newColSpanSW;
-					item.rowSpan = newRowSpanSW;
+				}
+				case 'sw': {
+					const newColSpan = Math.max(1, startColSpan - deltaX);
+					item.col = Math.max(1, Math.min(cols - newColSpan + 1, startCol + deltaX));
+					item.colSpan = newColSpan;
+					item.rowSpan = Math.max(1, startRowSpan + deltaY);
 					break;
-
-				case 'ne': // Northeast (top-right)
-					// For NE, as we move up, we decrease the row and increase the span
-					const itemColNE = ensureNumberValue(item.col);
-					const newRowSpanNE = Math.max(1, startRowSpan - deltaY);
-					const newRowNE = Math.max(1, Math.min(rows - newRowSpanNE + 1, startRow + deltaY));
-					const newColSpanNE = Math.max(1, Math.min(cols - itemColNE + 1, startColSpan + deltaX));
-
-					item.row = newRowNE;
-					item.rowSpan = newRowSpanNE;
-					item.colSpan = newColSpanNE;
+				}
+				case 'ne': {
+					const ic = ensureNumberValue(item.col);
+					const newRowSpan = Math.max(1, startRowSpan - deltaY);
+					item.row = Math.max(1, startRow + deltaY);
+					item.rowSpan = newRowSpan;
+					item.colSpan = Math.max(1, Math.min(cols - ic + 1, startColSpan + deltaX));
 					break;
-
-				case 'nw': // Northwest (top-left)
-					// For NW, we adjust both col and row
-					const newColSpanNW = Math.max(1, startColSpan - deltaX);
-					const newColNW = Math.max(1, Math.min(cols - newColSpanNW + 1, startCol + deltaX));
-					const newRowSpanNW = Math.max(1, startRowSpan - deltaY);
-					const newRowNW = Math.max(1, Math.min(rows - newRowSpanNW + 1, startRow + deltaY));
-
-					item.col = newColNW;
-					item.colSpan = newColSpanNW;
-					item.row = newRowNW;
-					item.rowSpan = newRowSpanNW;
+				}
+				case 'nw': {
+					const newColSpan = Math.max(1, startColSpan - deltaX);
+					const newRowSpan = Math.max(1, startRowSpan - deltaY);
+					item.col = Math.max(1, Math.min(cols - newColSpan + 1, startCol + deltaX));
+					item.colSpan = newColSpan;
+					item.row = Math.max(1, startRow + deltaY);
+					item.rowSpan = newRowSpan;
 					break;
+				}
 			}
 		}
 	}
 
-	// Stop dragging and resizing
-	function stopDragResize(e: MouseEvent) {
+	function stopDragResize() {
+		cancelTouchHold();
+		touchDragReady = false;
 		if (isDragging) {
-			// Restore the original z-index
 			const card = document.querySelector(`[data-id="${item.id}"]`) as HTMLElement;
 			if (card) card.style.zIndex = originalZIndex;
-
-			// Check if we're hovering over another card to swap
-			const hoverCard = findCardAtPosition(
-				ensureNumberValue(item.col),
-				ensureNumberValue(item.row)
-			);
+			const hoverCard = findCardAtPosition(ensureNumberValue(item.col), ensureNumberValue(item.row));
 			if (hoverCard && onSwap) {
-				// Swap the positions of the two cards
-				const tempCol = item.col;
-				const tempRow = item.row;
-
-				// If we have a callback, use it
 				onSwap(item, hoverCard);
 			}
 		}
-
 		isDragging = false;
 		isResizing = false;
 		resizeHandle = null;
-
-		// Remove global event listeners
-		window.removeEventListener('mousemove', handleMouseMove);
+		window.removeEventListener('mousemove', handlePointerMove);
 		window.removeEventListener('mouseup', stopDragResize);
+		window.removeEventListener('touchmove', handlePointerMove);
+		window.removeEventListener('touchend', stopDragResize);
 	}
 
-	// Cleanup event listeners when the component is destroyed
+	function handleDelete(e: MouseEvent | TouchEvent) {
+		e.stopPropagation();
+		e.preventDefault();
+		if (onDelete) onDelete(item.id);
+	}
+
+	function handleTap(e: TouchEvent) {
+		// Toggle selection on tap for mobile (shows delete button)
+		if (isDragging || isResizing || touchDragReady) return;
+		cancelTouchHold();
+		isSelected = !isSelected;
+	}
+
+	function handleDoubleClick(e: MouseEvent) {
+		e.stopPropagation();
+		e.preventDefault();
+		if (item.contentType === 'circle') return;
+		isEditing = true;
+		editText = item.content ?? '';
+	}
+
+	function finishEdit() {
+		item.content = editText;
+		isEditing = false;
+		if (onUpdateItem) onUpdateItem(item);
+	}
+
+	function handleEditKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			finishEdit();
+		}
+		if (e.key === 'Escape') {
+			isEditing = false;
+		}
+	}
+
+	// Deselect when clicking/tapping outside
+	function handleGlobalClick(e: MouseEvent | TouchEvent) {
+		const card = document.querySelector(`[data-id="${item.id}"]`);
+		if (card && !card.contains(e.target as Node)) {
+			isSelected = false;
+		}
+	}
+
 	$effect(() => {
+		document.addEventListener('mousedown', handleGlobalClick);
+		document.addEventListener('touchstart', handleGlobalClick);
 		return () => {
-			window.removeEventListener('mousemove', handleMouseMove);
+			window.removeEventListener('mousemove', handlePointerMove);
 			window.removeEventListener('mouseup', stopDragResize);
+			window.removeEventListener('touchmove', handlePointerMove);
+			window.removeEventListener('touchend', stopDragResize);
+			document.removeEventListener('mousedown', handleGlobalClick);
+			document.removeEventListener('touchstart', handleGlobalClick);
 		};
 	});
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	data-id={item.id}
 	role="gridcell"
 	tabindex="0"
 	aria-label={`Bento card ${item.id}: ${item.content ?? 'empty'}`}
-	class="hover:border-avocado-500 relative z-10 flex h-full min-h-24 w-full cursor-move items-center justify-center border transition-all duration-200 {item.color ??
-		''} rounded-{cornerRadius} {isDragging ? 'border-2 border-dashed opacity-75' : ''} {isResizing
-		? 'opacity-75'
-		: ''}"
-	style={`grid-column: ${ensureNumberValue(item.col)} / span ${ensureNumberValue(item.colSpan)}; grid-row: ${ensureNumberValue(item.row)} / span ${ensureNumberValue(item.rowSpan)}; min-height: 80px;`}
+	class="card-item group relative z-10 flex h-full w-full items-center justify-center overflow-hidden border-2 bg-neutral-900 transition-all duration-200 rounded-{cornerRadius} {isDragging ? 'border-dashed border-avocado-400 opacity-75 cursor-grabbing' : 'cursor-grab'} {isResizing ? 'opacity-75' : ''} {isSelected ? 'border-avocado-500' : 'border-transparent hover:border-avocado-500/50'}"
+	style="grid-column: {ensureNumberValue(item.col)} / span {ensureNumberValue(item.colSpan)}; grid-row: {ensureNumberValue(item.row)} / span {ensureNumberValue(item.rowSpan)};"
 	onmousedown={startDrag}
+	ontouchstart={startDrag}
+	ontouchend={handleTap}
+	ondblclick={handleDoubleClick}
 >
-	<span class="text-2xl text-white">{item.content ?? ''}</span>
+	<!-- Content rendering based on type -->
+	{#if isEditing}
+		{#if item.contentType === 'paragraph'}
+			<!-- svelte-ignore a11y_autofocus -->
+			<textarea
+				class="card-text h-full w-full resize-none bg-transparent p-6 text-sm leading-relaxed text-neutral-300 outline-none"
+				bind:value={editText}
+				onblur={finishEdit}
+				onkeydown={handleEditKeydown}
+				autofocus
+			></textarea>
+		{:else}
+			<!-- svelte-ignore a11y_autofocus -->
+			<input
+				type="text"
+				class="card-text w-full bg-transparent text-center text-3xl font-bold text-white outline-none md:text-5xl"
+				bind:value={editText}
+				onblur={finishEdit}
+				onkeydown={handleEditKeydown}
+				autofocus
+			/>
+		{/if}
+	{:else if item.contentType === 'paragraph'}
+		<p class="card-text p-6 text-sm leading-relaxed text-neutral-300">{item.content}</p>
+	{:else if item.contentType === 'circle'}
+		<div class="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
+			{#each Array(4) as _}
+				<div class="circle-shape aspect-square w-16 rounded-full bg-white"></div>
+			{/each}
+		</div>
+	{:else if item.contentType === 'typography'}
+		<div class="card-text flex flex-col items-start justify-center gap-1 p-6 text-white">
+			<span class="text-4xl font-bold">{item.content}</span>
+			<span class="text-xs tracking-wider opacity-60">ABCDEFGHIJKLMNOPQRSTUVWXYZ</span>
+			<span class="text-xs tracking-wider opacity-60">abcdefghijklmnopqrstuvwxyz</span>
+			<span class="text-xs tracking-wider opacity-60">123456789</span>
+		</div>
+	{:else if item.contentType === 'heading'}
+		<span class="card-text text-3xl font-bold text-white md:text-5xl">{item.content ?? ''}</span>
+	{:else}
+		<span class="card-text text-2xl text-white">{item.content ?? ''}</span>
+	{/if}
 
-	<!-- Resize handles with visual indicators -->
+	<!-- Delete button (visible on hover OR when selected on mobile) -->
+	{#if !isEditing}
+		<button
+			class="absolute top-2 right-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100 {isSelected ? '!opacity-100' : ''}"
+			onclick={handleDelete}
+			ontouchend={handleDelete}
+			aria-label="Delete card"
+		>
+			<X class="h-3.5 w-3.5" />
+		</button>
+	{/if}
+
+	<!-- Resize handles with visible indicators on hover/select -->
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from bottom-right"
-		class="hover:bg-avocado-500/50 absolute right-0 bottom-0 h-5 w-5 cursor-se-resize rounded-sm bg-white/20"
+		class="absolute right-0 bottom-0 z-20 h-8 w-8 cursor-se-resize md:h-5 md:w-5"
 		onmousedown={(e) => startResize(e, 'se')}
+		ontouchstart={(e) => startResize(e, 'se')}
 	>
-		<div class="absolute right-0 bottom-0 h-3 w-3 border-r-2 border-b-2 border-white/50"></div>
+		<div class="absolute right-1 bottom-1 h-3 w-3 border-r-2 border-b-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-br-sm"></div>
 	</div>
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from bottom-left"
-		class="hover:bg-avocado-500/50 absolute bottom-0 left-0 h-5 w-5 cursor-sw-resize rounded-sm bg-white/20"
+		class="absolute bottom-0 left-0 z-20 h-8 w-8 cursor-sw-resize md:h-5 md:w-5"
 		onmousedown={(e) => startResize(e, 'sw')}
+		ontouchstart={(e) => startResize(e, 'sw')}
 	>
-		<div class="absolute bottom-0 left-0 h-3 w-3 border-b-2 border-l-2 border-white/50"></div>
+		<div class="absolute bottom-1 left-1 h-3 w-3 border-l-2 border-b-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-bl-sm"></div>
 	</div>
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from top-right"
-		class="hover:bg-avocado-500/50 absolute top-0 right-0 h-5 w-5 cursor-ne-resize rounded-sm bg-white/20"
+		class="absolute top-0 right-0 z-20 h-8 w-8 cursor-ne-resize md:h-5 md:w-5"
 		onmousedown={(e) => startResize(e, 'ne')}
+		ontouchstart={(e) => startResize(e, 'ne')}
 	>
-		<div class="absolute top-0 right-0 h-3 w-3 border-t-2 border-r-2 border-white/50"></div>
+		<div class="absolute top-1 right-1 h-3 w-3 border-r-2 border-t-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-tr-sm"></div>
 	</div>
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from top-left"
-		class="hover:bg-avocado-500/50 absolute top-0 left-0 h-5 w-5 cursor-nw-resize rounded-sm bg-white/20"
+		class="absolute top-0 left-0 z-20 h-8 w-8 cursor-nw-resize md:h-5 md:w-5"
 		onmousedown={(e) => startResize(e, 'nw')}
+		ontouchstart={(e) => startResize(e, 'nw')}
 	>
-		<div class="absolute top-0 left-0 h-3 w-3 border-t-2 border-l-2 border-white/50"></div>
+		<div class="absolute top-1 left-1 h-3 w-3 border-l-2 border-t-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-tl-sm"></div>
 	</div>
 </div>

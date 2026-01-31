@@ -12,13 +12,24 @@ export type CornerRadius =
 	| 'full';
 export type Gap = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
+export type CardContentType = 'text' | 'heading' | 'paragraph' | 'circle' | 'typography';
+
 export type GridItem = {
 	id: number;
 	content?: string;
+	contentType?: CardContentType;
 	color?: string;
 	text?: string;
 	col?: number;
 	row?: number;
 	colSpan?: number;
 	rowSpan?: number;
+	/** Original desktop col position for responsive remapping */
+	_origCol?: number;
+	/** Original desktop colSpan for responsive remapping */
+	_origColSpan?: number;
+	/** Original desktop row position for responsive remapping */
+	_origRow?: number;
+	/** Original desktop rowSpan for responsive remapping */
+	_origRowSpan?: number;
 };
