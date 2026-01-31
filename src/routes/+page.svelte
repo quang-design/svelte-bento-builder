@@ -31,20 +31,22 @@
 	): { items: GridItem[]; newRows: number } {
 		if (oldCols === newCols) return { items, newRows: oldRows };
 
-		// Clamp colSpan to fit within new column count, keep rowSpan unchanged
+		// Clamp colSpan, scale rowSpan to preserve total grid area (colSpan × rowSpan)
 		const scaled = items.map((item) => {
 			const origCol = item._origCol ?? item.col ?? 1;
 			const origColSpan = item._origColSpan ?? item.colSpan ?? 1;
 			const origRow = item._origRow ?? item.row ?? 1;
 			const origRowSpan = item._origRowSpan ?? item.rowSpan ?? 1;
 
-			// Clamp colSpan: if it exceeds newCols, set to newCols; otherwise keep as-is
 			const newColSpan = Math.min(origColSpan, newCols);
+			// Preserve area: origColSpan * origRowSpan = newColSpan * newRowSpan
+			const origArea = origColSpan * origRowSpan;
+			const newRowSpan = Math.max(1, Math.round(origArea / newColSpan));
 
 			return {
 				...item,
 				colSpan: newColSpan,
-				rowSpan: origRowSpan,
+				rowSpan: newRowSpan,
 				_origCol: origCol,
 				_origColSpan: origColSpan,
 				_origRow: origRow,
