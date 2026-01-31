@@ -45,7 +45,7 @@
 	}
 </script>
 
-<div class="relative w-full max-w-6xl" style="aspect-ratio: {cols} / {rows};">
+<div class="relative w-full max-w-6xl" style="aspect-ratio: {cols} / {rows}; {rows > 10 ? 'min-height: 100vh;' : ''}">
 	{#if showGridLines}
 		<BentoGridLines {cols} {rows} {gap} />
 	{/if}
