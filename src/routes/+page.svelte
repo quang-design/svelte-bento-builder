@@ -218,6 +218,19 @@
 	]);
 
 	let nextId = $state(9);
+	const MIN_ROWS = 6;
+
+	// Auto-expand/shrink rows based on card extents
+	$effect(() => {
+		let maxRow = MIN_ROWS;
+		for (const item of gridItems) {
+			const r = (item.row ?? 1) + (item.rowSpan ?? 1) - 1;
+			if (r > maxRow) maxRow = r;
+		}
+		if (maxRow !== rows) {
+			rows = maxRow;
+		}
+	});
 
 	function addCard() {
 		let placed = false;
