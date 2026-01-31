@@ -43,6 +43,12 @@
 	let originalZIndex = $state<string>('');
 	let editText = $state('');
 
+	// Touch drag requires a hold before dragging to avoid interfering with page scroll
+	let touchHoldTimer: ReturnType<typeof setTimeout> | null = null;
+	let touchDragReady = $state(false);
+	let pendingTouchEvent: TouchEvent | null = null;
+	const TOUCH_HOLD_MS = 200;
+
 	function getCellSize() {
 		const gridContainer = document.querySelector('[data-bento-grid]');
 		if (!gridContainer) return { cellWidth: 0, cellHeight: 0 };
@@ -75,17 +81,63 @@
 
 	function startDrag(e: MouseEvent | TouchEvent) {
 		if (resizeHandle || isEditing) return;
+
+		// For touch: don't preventDefault immediately — let the browser scroll.
+		// Instead, start a hold timer. Drag only activates after holding.
+		if ('touches' in e) {
+			pendingTouchEvent = e;
+			const { x, y } = getPointerXY(e);
+			startX = x;
+			startY = y;
+			touchDragReady = false;
+			touchHoldTimer = setTimeout(() => {
+				touchDragReady = true;
+				activateDrag(pendingTouchEvent!);
+			}, TOUCH_HOLD_MS);
+			// Listen for touchmove to cancel hold if user scrolls
+			window.addEventListener('touchmove', cancelTouchHoldOnScroll, { passive: true });
+			window.addEventListener('touchend', cancelTouchHold);
+			return;
+		}
+
 		e.preventDefault();
+		activateDrag(e);
+	}
+
+	function cancelTouchHoldOnScroll(e: TouchEvent) {
+		if (touchDragReady) return; // already activated
+		const { x, y } = getPointerXY(e);
+		const dist = Math.abs(x - startX) + Math.abs(y - startY);
+		if (dist > 10) {
+			cancelTouchHold();
+		}
+	}
+
+	function cancelTouchHold() {
+		if (touchHoldTimer) {
+			clearTimeout(touchHoldTimer);
+			touchHoldTimer = null;
+		}
+		pendingTouchEvent = null;
+		window.removeEventListener('touchmove', cancelTouchHoldOnScroll);
+		window.removeEventListener('touchend', cancelTouchHold);
+	}
+
+	function activateDrag(e: MouseEvent | TouchEvent) {
 		isDragging = true;
 		isSelected = true;
-		const card = e.currentTarget as HTMLElement;
-		originalZIndex = card.style.zIndex || '10';
-		card.style.zIndex = '100';
+		const card = document.querySelector(`[data-id="${item.id}"]`) as HTMLElement;
+		if (card) {
+			originalZIndex = card.style.zIndex || '10';
+			card.style.zIndex = '100';
+		}
 		const { x, y } = getPointerXY(e);
 		startX = x;
 		startY = y;
 		startCol = ensureNumberValue(item.col);
 		startRow = ensureNumberValue(item.row);
+		window.removeEventListener('touchmove', cancelTouchHoldOnScroll);
+		window.removeEventListener('touchend', cancelTouchHold);
 		window.addEventListener('mousemove', handlePointerMove);
 		window.addEventListener('mouseup', stopDragResize);
 		window.addEventListener('touchmove', handlePointerMove, { passive: false });
@@ -162,6 +214,8 @@
 	}
 
 	function stopDragResize() {
+		cancelTouchHold();
+		touchDragReady = false;
 		if (isDragging) {
 			const card = document.querySelector(`[data-id="${item.id}"]`) as HTMLElement;
 			if (card) card.style.zIndex = originalZIndex;
@@ -187,7 +241,8 @@
 
 	function handleTap(e: TouchEvent) {
 		// Toggle selection on tap for mobile (shows delete button)
-		if (isDragging || isResizing) return;
+		if (isDragging || isResizing || touchDragReady) return;
+		cancelTouchHold();
 		isSelected = !isSelected;
 	}
 
@@ -243,7 +298,7 @@
 	role="gridcell"
 	tabindex="0"
 	aria-label={`Bento card ${item.id}: ${item.content ?? 'empty'}`}
-	class="card-item group relative z-10 flex h-full w-full cursor-move items-center justify-center overflow-hidden border border-transparent bg-neutral-900 transition-all duration-200 hover:border-avocado-500 rounded-{cornerRadius} {isDragging ? 'border-2 border-dashed opacity-75' : ''} {isResizing ? 'opacity-75' : ''} {isSelected ? 'border-avocado-500' : ''}"
+	class="card-item group relative z-10 flex h-full w-full items-center justify-center overflow-hidden border-2 bg-neutral-900 transition-all duration-200 rounded-{cornerRadius} {isDragging ? 'border-dashed border-avocado-400 opacity-75 cursor-grabbing' : 'cursor-grab'} {isResizing ? 'opacity-75' : ''} {isSelected ? 'border-avocado-500' : 'border-transparent hover:border-avocado-500/50'}"
 	style="grid-column: {ensureNumberValue(item.col)} / span {ensureNumberValue(item.colSpan)}; grid-row: {ensureNumberValue(item.row)} / span {ensureNumberValue(item.rowSpan)};"
 	onmousedown={startDrag}
 	ontouchstart={startDrag}
@@ -305,37 +360,45 @@
 		</button>
 	{/if}
 
-	<!-- Resize handles (larger on mobile for touch targets) -->
+	<!-- Resize handles with visible indicators on hover/select -->
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from bottom-right"
-		class="absolute right-0 bottom-0 z-20 h-6 w-6 cursor-se-resize md:h-4 md:w-4"
+		class="absolute right-0 bottom-0 z-20 h-8 w-8 cursor-se-resize md:h-5 md:w-5"
 		onmousedown={(e) => startResize(e, 'se')}
 		ontouchstart={(e) => startResize(e, 'se')}
-	></div>
+	>
+		<div class="absolute right-1 bottom-1 h-3 w-3 border-r-2 border-b-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-br-sm"></div>
+	</div>
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from bottom-left"
-		class="absolute bottom-0 left-0 z-20 h-6 w-6 cursor-sw-resize md:h-4 md:w-4"
+		class="absolute bottom-0 left-0 z-20 h-8 w-8 cursor-sw-resize md:h-5 md:w-5"
 		onmousedown={(e) => startResize(e, 'sw')}
 		ontouchstart={(e) => startResize(e, 'sw')}
-	></div>
+	>
+		<div class="absolute bottom-1 left-1 h-3 w-3 border-l-2 border-b-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-bl-sm"></div>
+	</div>
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from top-right"
-		class="absolute top-0 right-0 z-20 h-6 w-6 cursor-ne-resize md:h-4 md:w-4"
+		class="absolute top-0 right-0 z-20 h-8 w-8 cursor-ne-resize md:h-5 md:w-5"
 		onmousedown={(e) => startResize(e, 'ne')}
 		ontouchstart={(e) => startResize(e, 'ne')}
-	></div>
+	>
+		<div class="absolute top-1 right-1 h-3 w-3 border-r-2 border-t-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-tr-sm"></div>
+	</div>
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from top-left"
-		class="absolute top-0 left-0 z-20 h-6 w-6 cursor-nw-resize md:h-4 md:w-4"
+		class="absolute top-0 left-0 z-20 h-8 w-8 cursor-nw-resize md:h-5 md:w-5"
 		onmousedown={(e) => startResize(e, 'nw')}
 		ontouchstart={(e) => startResize(e, 'nw')}
-	></div>
+	>
+		<div class="absolute top-1 left-1 h-3 w-3 border-l-2 border-t-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-tl-sm"></div>
+	</div>
 </div>
