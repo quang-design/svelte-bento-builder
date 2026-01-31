@@ -8,14 +8,14 @@
 	let { cols = 12, rows = 6, gap = 4 }: Props = $props();
 </script>
 
-<div class="pointer-events-none absolute inset-0 z-20">
+<div class="pointer-events-none absolute inset-0 z-20 overflow-visible">
 	<!-- Column Numbers Bar (Top) -->
-	<div class="absolute top-0 right-0 flex h-full w-full select-none">
+	<div class="absolute top-0 right-0 flex h-full w-full select-none overflow-visible">
 		{#each Array(cols) as _, i}
 			<div
-				class="relative flex h-full flex-1 items-center justify-center border-x-[0.5px] border-white/15 font-mono text-xs text-neutral-500"
+				class="relative flex h-full flex-1 items-center justify-center border-x-[0.5px] border-white/15 font-mono text-xs text-neutral-500 overflow-visible"
 			>
-				<span class="absolute top-1">{i + 1}</span>
+				<span class="absolute bottom-full mb-1.5">{i + 1}</span>
 			</div>
 			{#if i < cols - 1}
 				<div class="w-{gap} bg-neutral-500/5"></div>
@@ -23,12 +23,12 @@
 		{/each}
 	</div>
 	<!-- Row Numbers Bar (Left) -->
-	<div class="absolute top-0 bottom-0 left-0 flex h-full w-full flex-col select-none">
+	<div class="absolute top-0 bottom-0 left-0 flex h-full w-full flex-col select-none overflow-visible">
 		{#each Array(rows) as _, i}
 			<div
-				class="relative flex flex-1 items-center border-y-[0.5px] border-white/15 font-mono text-xs text-neutral-500"
+				class="relative flex flex-1 items-center border-y-[0.5px] border-white/15 font-mono text-xs text-neutral-500 overflow-visible"
 			>
-				<span class="pl-1.5">{i + 1}</span>
+				<span class="absolute right-full mr-1.5">{i + 1}</span>
 			</div>
 			{#if i < rows - 1}
 				<div class="h-{gap} w-full bg-neutral-500/5"></div>
