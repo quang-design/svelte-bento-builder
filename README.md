@@ -2,20 +2,21 @@
 
 A modern, customizable Bento grid builder app built with SvelteKit 5, Tailwind CSS v4, TypeScript, and Supabase. Design, edit, and manage beautiful bento layouts with a clean, responsive UI and the latest Svelte 5 runes syntax.
 
-![Screenshot](./screenshot.png)
-
 ## Features
 
-- ⚡ Interactive bento grid with adjustable columns, rows, and gap
-- 🎨 Live theme switching (light/dark/system)
-- 🧩 Drag & resize grid cards (planned)
-- 🗑️ Add & delete cards (planned)
-- 📏 Adjustable corner radius and grid lines
-- 💡 Responsive design for mobile/tablet
-- 🧑‍💻 Built with Svelte 5 runes syntax & SSR
-- 🎨 Styled with Tailwind CSS v4 using CSS variables
-- 🔒 Type-safe with TypeScript
-- ☁️ Supabase backend ready (optional)
+- Interactive bento grid with adjustable columns, rows, and gap
+- Live theme switching (light/dark/system)
+- Drag & drop grid cards with automatic swapping
+- Resize cards from all four corners (NW, NE, SW, SE)
+- Add new cards to the grid
+- Delete cards on hover
+- Rich card content types: headings, paragraphs, circles, typography specimens
+- Adjustable corner radius and toggleable grid lines overlay
+- Responsive design for mobile/tablet
+- Built with Svelte 5 runes syntax & SSR
+- Styled with Tailwind CSS v4 using CSS variables
+- Type-safe with TypeScript
+- Supabase backend ready (optional)
 
 ## Tech Stack
 
@@ -37,14 +38,12 @@ A modern, customizable Bento grid builder app built with SvelteKit 5, Tailwind C
 
    ```bash
    npm install
-   # or pnpm install / yarn
    ```
 
 3. **Run the development server:**
 
    ```bash
    npm run dev
-   # Visit http://localhost:5173 (or shown URL)
    ```
 
 4. **Build for production:**
@@ -56,9 +55,12 @@ A modern, customizable Bento grid builder app built with SvelteKit 5, Tailwind C
 
 ## Usage
 
-- Adjust grid columns, rows, gap, and corner radius from the bottom nav
-- Toggle grid lines and theme
-- Add, delete, drag, and resize cards (see roadmap for status)
+- Adjust grid columns, rows, gap, and corner radius from the bottom nav bar
+- Toggle grid lines and switch themes (system/light/dark)
+- Click **Add** to create new cards
+- Hover over a card to reveal the delete button (red X) and resize handles
+- Drag cards to reposition; drop onto another card to swap positions
+- Resize cards by dragging any corner handle
 
 ## Contributing
 
@@ -67,7 +69,3 @@ PRs, issues, and suggestions welcome! Please open an issue or submit a pull requ
 ## License
 
 [MIT](LICENSE)
-
----
-
-> Made with ❤️ using Svelte 5, Tailwind v4, and TypeScript.

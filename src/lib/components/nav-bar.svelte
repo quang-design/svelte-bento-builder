@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MonitorCog, Moon, Sun } from '@lucide/svelte';
+	import { MonitorCog, Moon, Sun, Plus } from '@lucide/svelte';
 
 	import type { CornerRadius, Gap } from '$lib/types/bento';
 
@@ -9,6 +9,7 @@
 		cornerRadius?: CornerRadius;
 		gap?: Gap;
 		showGridLines?: boolean;
+		onAddCard?: () => void;
 	}
 
 	let {
@@ -16,10 +17,10 @@
 		rows = $bindable(6),
 		cornerRadius = $bindable('lg'),
 		gap = $bindable(4),
-		showGridLines = $bindable(true)
+		showGridLines = $bindable(true),
+		onAddCard = undefined
 	}: Props = $props();
 
-	// Tailwind v4 border radius options (ordered smallest to largest)
 	const cornerOptions = [
 		{ value: 'none', label: 'None' },
 		{ value: 'xs', label: 'XS' },
@@ -62,6 +63,16 @@
 	</a>
 	<!-- Bento Grid Settings -->
 	<div class="flex items-center gap-4">
+		<!-- Add Card Button -->
+		<button
+			class="bg-avocado-500 hover:bg-avocado-400 flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium text-black transition-colors"
+			onclick={() => onAddCard?.()}
+			aria-label="Add new card"
+		>
+			<Plus class="h-4 w-4" />
+			<span>Add</span>
+		</button>
+
 		<!-- Columns -->
 		<label for="col-range" class="text-sm text-neutral-300">Columns</label>
 		<input
