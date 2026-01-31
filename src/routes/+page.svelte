@@ -12,6 +12,8 @@
 
 	// Store the "desktop" (original) layout so we can scale proportionally
 	const DESKTOP_COLS = 12;
+	const DESKTOP_ROWS = 6;
+	let prevMaxCols = $state(DESKTOP_COLS);
 
 	// Responsive: clamp cols based on screen width
 	function getMaxCols(width: number): number {
@@ -20,51 +22,126 @@
 		return 24;
 	}
 
-	// Remap card positions/spans from one column count to another, preserving proportions
-	function remapCards(items: GridItem[], oldCols: number, newCols: number): GridItem[] {
-		if (oldCols === newCols) return items;
+	// Remap card positions/spans preserving cell area (colSpan * rowSpan) and reflow positions
+	function remapCards(
+		items: GridItem[],
+		oldCols: number,
+		newCols: number,
+		oldRows: number
+	): { items: GridItem[]; newRows: number } {
+		if (oldCols === newCols) return { items, newRows: oldRows };
 		const ratio = newCols / oldCols;
-		return items.map((item) => {
+
+		// Scale spans for each card, preserving cell area
+		const scaled = items.map((item) => {
 			const origCol = item._origCol ?? item.col ?? 1;
 			const origColSpan = item._origColSpan ?? item.colSpan ?? 1;
+			const origRow = item._origRow ?? item.row ?? 1;
+			const origRowSpan = item._origRowSpan ?? item.rowSpan ?? 1;
 
-			// Scale col and colSpan, rounding to at least 1
 			let newColSpan = Math.max(1, Math.round(origColSpan * ratio));
-			let newCol = Math.max(1, Math.round((origCol - 1) * ratio) + 1);
-
-			// Clamp to fit within grid
 			if (newColSpan > newCols) newColSpan = newCols;
-			if (newCol + newColSpan - 1 > newCols) {
-				newCol = Math.max(1, newCols - newColSpan + 1);
-			}
+
+			// Scale rowSpan to preserve cell area (colSpan * rowSpan stays constant)
+			const origArea = origColSpan * origRowSpan;
+			let newRowSpan = Math.max(1, Math.round(origArea / newColSpan));
 
 			return {
 				...item,
-				col: newCol,
 				colSpan: newColSpan,
-				// Store originals for re-scaling later
+				rowSpan: newRowSpan,
 				_origCol: origCol,
-				_origColSpan: origColSpan
+				_origColSpan: origColSpan,
+				_origRow: origRow,
+				_origRowSpan: origRowSpan
 			};
 		});
+
+		// Sort by original position to maintain visual order
+		const sorted = [...scaled].sort((a, b) => {
+			const aRow = a._origRow ?? 1;
+			const bRow = b._origRow ?? 1;
+			const aCol = a._origCol ?? 1;
+			const bCol = b._origCol ?? 1;
+			return aRow !== bRow ? aRow - bRow : aCol - bCol;
+		});
+
+		// Reflow: place cards into grid scanning top-left to bottom-right
+		const maxPossibleRows = oldRows * Math.ceil(oldCols / newCols) + 30;
+		const grid: boolean[][] = Array.from({ length: maxPossibleRows }, () =>
+			Array(newCols).fill(false)
+		);
+
+		let maxUsedRow = 0;
+		for (const card of sorted) {
+			const cs = card.colSpan!;
+			const rs = card.rowSpan!;
+			let placed = false;
+			for (let r = 0; r < maxPossibleRows - rs && !placed; r++) {
+				for (let c = 0; c <= newCols - cs && !placed; c++) {
+					let fits = true;
+					for (let dr = 0; dr < rs && fits; dr++) {
+						for (let dc = 0; dc < cs && fits; dc++) {
+							if (grid[r + dr][c + dc]) fits = false;
+						}
+					}
+					if (fits) {
+						card.col = c + 1;
+						card.row = r + 1;
+						for (let dr = 0; dr < rs; dr++) {
+							for (let dc = 0; dc < cs; dc++) {
+								grid[r + dr][c + dc] = true;
+							}
+						}
+						maxUsedRow = Math.max(maxUsedRow, r + rs);
+						placed = true;
+					}
+				}
+			}
+		}
+
+		return { items: sorted, newRows: Math.max(oldRows, maxUsedRow) };
+	}
+
+	// Restore cards to their original desktop positions
+	function restoreCards(items: GridItem[]): GridItem[] {
+		return items.map((item) => ({
+			...item,
+			col: item._origCol ?? item.col,
+			row: item._origRow ?? item.row,
+			colSpan: item._origColSpan ?? item.colSpan,
+			rowSpan: item._origRowSpan ?? item.rowSpan
+		}));
 	}
 
 	onMount(() => {
 		function handleResize() {
 			const maxCols = getMaxCols(window.innerWidth);
-			if (cols > maxCols) {
-				const oldCols = cols;
+			if (maxCols === prevMaxCols) return;
+
+			if (maxCols >= DESKTOP_COLS) {
+				// Restore to desktop layout
+				gridItems = restoreCards(gridItems);
+				cols = DESKTOP_COLS;
+				rows = DESKTOP_ROWS;
+			} else {
+				// Remap from desktop originals to new column count
+				const result = remapCards(gridItems, DESKTOP_COLS, maxCols, DESKTOP_ROWS);
+				gridItems = result.items;
 				cols = maxCols;
-				gridItems = remapCards(gridItems, oldCols, cols);
+				rows = result.newRows;
 			}
+			prevMaxCols = maxCols;
 		}
 
 		// On initial load, remap if needed
 		const maxCols = getMaxCols(window.innerWidth);
-		if (cols > maxCols) {
-			const oldCols = cols;
+		prevMaxCols = maxCols;
+		if (maxCols < DESKTOP_COLS) {
+			const result = remapCards(gridItems, DESKTOP_COLS, maxCols, DESKTOP_ROWS);
+			gridItems = result.items;
 			cols = maxCols;
-			gridItems = remapCards(gridItems, oldCols, cols);
+			rows = result.newRows;
 		}
 
 		window.addEventListener('resize', handleResize);

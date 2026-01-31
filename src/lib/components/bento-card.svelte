@@ -273,24 +273,26 @@
 			/>
 		{/if}
 	{:else if item.contentType === 'paragraph'}
-		<p class="card-text p-6 text-sm leading-relaxed text-neutral-300">{item.content}</p>
+		<div class="flex h-full w-full items-center overflow-auto p-3 sm:p-6">
+			<p class="card-text text-xs leading-relaxed text-neutral-300 sm:text-sm">{item.content}</p>
+		</div>
 	{:else if item.contentType === 'circle'}
-		<div class="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
+		<div class="flex h-full w-full flex-col items-center justify-center gap-2 p-2 sm:gap-4 sm:p-4">
 			{#each Array(4) as _}
-				<div class="circle-shape aspect-square w-16 rounded-full bg-white"></div>
+				<div class="circle-shape aspect-square w-8 rounded-full bg-white sm:w-16"></div>
 			{/each}
 		</div>
 	{:else if item.contentType === 'typography'}
-		<div class="card-text flex flex-col items-start justify-center gap-1 p-6 text-white">
-			<span class="text-4xl font-bold">{item.content}</span>
-			<span class="text-xs tracking-wider opacity-60">ABCDEFGHIJKLMNOPQRSTUVWXYZ</span>
-			<span class="text-xs tracking-wider opacity-60">abcdefghijklmnopqrstuvwxyz</span>
-			<span class="text-xs tracking-wider opacity-60">123456789</span>
+		<div class="card-text flex h-full w-full flex-col items-start justify-center gap-0.5 overflow-hidden p-3 text-white sm:gap-1 sm:p-6">
+			<span class="text-xl font-bold sm:text-4xl">{item.content}</span>
+			<span class="truncate text-[8px] tracking-wider opacity-60 sm:text-xs">ABCDEFGHIJKLMNOPQRSTUVWXYZ</span>
+			<span class="truncate text-[8px] tracking-wider opacity-60 sm:text-xs">abcdefghijklmnopqrstuvwxyz</span>
+			<span class="truncate text-[8px] tracking-wider opacity-60 sm:text-xs">123456789</span>
 		</div>
 	{:else if item.contentType === 'heading'}
-		<span class="card-text text-3xl font-bold text-white md:text-5xl">{item.content ?? ''}</span>
+		<span class="card-text text-xl font-bold text-white sm:text-3xl md:text-5xl">{item.content ?? ''}</span>
 	{:else}
-		<span class="card-text text-2xl text-white">{item.content ?? ''}</span>
+		<span class="card-text text-lg text-white sm:text-2xl">{item.content ?? ''}</span>
 	{/if}
 
 	<!-- Delete button (visible on hover OR when selected on mobile) -->

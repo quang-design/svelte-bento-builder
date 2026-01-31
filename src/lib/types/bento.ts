@@ -28,4 +28,8 @@ export type GridItem = {
 	_origCol?: number;
 	/** Original desktop colSpan for responsive remapping */
 	_origColSpan?: number;
+	/** Original desktop row position for responsive remapping */
+	_origRow?: number;
+	/** Original desktop rowSpan for responsive remapping */
+	_origRowSpan?: number;
 };
