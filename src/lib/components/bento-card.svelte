@@ -52,7 +52,13 @@
 	function getCellSize() {
 		const gridContainer = document.querySelector('[data-bento-grid]');
 		if (!gridContainer) return { cellWidth: 0, cellHeight: 0 };
-		return { cellWidth: gridContainer.clientWidth / cols, cellHeight: gridContainer.clientHeight / rows };
+		const style = getComputedStyle(gridContainer);
+		const gapCol = parseFloat(style.columnGap) || 0;
+		const gapRow = parseFloat(style.rowGap) || 0;
+		return {
+			cellWidth: (gridContainer.clientWidth + gapCol) / cols,
+			cellHeight: (gridContainer.clientHeight + gapRow) / rows
+		};
 	}
 
 	function ensureNumberValue(value: number | undefined): number {
