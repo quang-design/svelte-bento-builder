@@ -10,6 +10,9 @@
 	let gap = $state<Gap>(4);
 	let showGridLines = $state<boolean>(false);
 
+	// Store the "desktop" (original) layout so we can scale proportionally
+	const DESKTOP_COLS = 12;
+
 	// Responsive: clamp cols based on screen width
 	function getMaxCols(width: number): number {
 		if (width < 640) return 4;
@@ -17,12 +20,53 @@
 		return 24;
 	}
 
+	// Remap card positions/spans from one column count to another, preserving proportions
+	function remapCards(items: GridItem[], oldCols: number, newCols: number): GridItem[] {
+		if (oldCols === newCols) return items;
+		const ratio = newCols / oldCols;
+		return items.map((item) => {
+			const origCol = item._origCol ?? item.col ?? 1;
+			const origColSpan = item._origColSpan ?? item.colSpan ?? 1;
+
+			// Scale col and colSpan, rounding to at least 1
+			let newColSpan = Math.max(1, Math.round(origColSpan * ratio));
+			let newCol = Math.max(1, Math.round((origCol - 1) * ratio) + 1);
+
+			// Clamp to fit within grid
+			if (newColSpan > newCols) newColSpan = newCols;
+			if (newCol + newColSpan - 1 > newCols) {
+				newCol = Math.max(1, newCols - newColSpan + 1);
+			}
+
+			return {
+				...item,
+				col: newCol,
+				colSpan: newColSpan,
+				// Store originals for re-scaling later
+				_origCol: origCol,
+				_origColSpan: origColSpan
+			};
+		});
+	}
+
 	onMount(() => {
 		function handleResize() {
 			const maxCols = getMaxCols(window.innerWidth);
-			if (cols > maxCols) cols = maxCols;
+			if (cols > maxCols) {
+				const oldCols = cols;
+				cols = maxCols;
+				gridItems = remapCards(gridItems, oldCols, cols);
+			}
 		}
-		handleResize();
+
+		// On initial load, remap if needed
+		const maxCols = getMaxCols(window.innerWidth);
+		if (cols > maxCols) {
+			const oldCols = cols;
+			cols = maxCols;
+			gridItems = remapCards(gridItems, oldCols, cols);
+		}
+
 		window.addEventListener('resize', handleResize);
 		return () => window.removeEventListener('resize', handleResize);
 	});
