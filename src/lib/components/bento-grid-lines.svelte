@@ -13,7 +13,7 @@
 	<div class="absolute top-0 right-0 flex h-full w-full select-none">
 		{#each Array(cols) as _, i}
 			<div
-				class="flex h-full flex-1 items-center justify-center border-x-[0.5px] border-white/15 font-mono text-xs text-neutral-500"
+				class="relative flex h-full flex-1 items-center justify-center border-x-[0.5px] border-white/15 font-mono text-xs text-neutral-500"
 			>
 				<span class="absolute -top-6">{i + 1}</span>
 			</div>
@@ -26,7 +26,7 @@
 	<div class="absolute top-0 bottom-0 left-0 flex h-full w-full flex-col select-none">
 		{#each Array(rows) as _, i}
 			<div
-				class="flex flex-1 items-center justify-end border-y-[0.5px] border-white/15 pr-2 font-mono text-xs text-neutral-500"
+				class="relative flex flex-1 items-center justify-end border-y-[0.5px] border-white/15 pr-2 font-mono text-xs text-neutral-500"
 			>
 				<span class="absolute -left-6">{i + 1}</span>
 			</div>
