@@ -22,7 +22,7 @@
 		return 24;
 	}
 
-	// Remap card positions/spans preserving cell area (colSpan * rowSpan) and reflow positions
+	// Remap cards for smaller column counts: clamp colSpan, keep rowSpan, reflow positions
 	function remapCards(
 		items: GridItem[],
 		oldCols: number,
@@ -30,26 +30,21 @@
 		oldRows: number
 	): { items: GridItem[]; newRows: number } {
 		if (oldCols === newCols) return { items, newRows: oldRows };
-		const ratio = newCols / oldCols;
 
-		// Scale spans for each card, preserving cell area
+		// Clamp colSpan to fit within new column count, keep rowSpan unchanged
 		const scaled = items.map((item) => {
 			const origCol = item._origCol ?? item.col ?? 1;
 			const origColSpan = item._origColSpan ?? item.colSpan ?? 1;
 			const origRow = item._origRow ?? item.row ?? 1;
 			const origRowSpan = item._origRowSpan ?? item.rowSpan ?? 1;
 
-			let newColSpan = Math.max(1, Math.round(origColSpan * ratio));
-			if (newColSpan > newCols) newColSpan = newCols;
-
-			// Scale rowSpan to preserve cell area (colSpan * rowSpan stays constant)
-			const origArea = origColSpan * origRowSpan;
-			let newRowSpan = Math.max(1, Math.round(origArea / newColSpan));
+			// Clamp colSpan: if it exceeds newCols, set to newCols; otherwise keep as-is
+			const newColSpan = Math.min(origColSpan, newCols);
 
 			return {
 				...item,
 				colSpan: newColSpan,
-				rowSpan: newRowSpan,
+				rowSpan: origRowSpan,
 				_origCol: origCol,
 				_origColSpan: origColSpan,
 				_origRow: origRow,
