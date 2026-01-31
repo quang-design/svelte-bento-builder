@@ -11,6 +11,7 @@
 		gap?: Gap;
 		showGridLines?: boolean;
 		onDelete?: (id: number) => void;
+		onUpdateItem?: (item: GridItem) => void;
 	};
 
 	let {
@@ -20,7 +21,8 @@
 		gridItems = $bindable([]),
 		gap = 4,
 		showGridLines = true,
-		onDelete = undefined
+		onDelete = undefined,
+		onUpdateItem = undefined
 	}: Props = $props();
 
 	function handleSwap(item1: GridItem, item2: GridItem) {
@@ -43,16 +45,17 @@
 	}
 </script>
 
-<div class="relative flex h-full w-full max-w-6xl">
+<div class="relative w-full max-w-6xl" style="aspect-ratio: {cols} / {rows};">
 	{#if showGridLines}
 		<BentoGridLines {cols} {rows} {gap} />
 	{/if}
 	<div
-		class="grid min-h-80 w-full gap-{gap}"
-		style="grid-template-columns: repeat({cols}, minmax(0, 1fr)); grid-template-rows: repeat({rows}, minmax(0, 1fr));"
+		data-bento-grid
+		class="grid h-full w-full gap-{gap}"
+		style="grid-template-columns: repeat({cols}, 1fr); grid-template-rows: repeat({rows}, 1fr);"
 	>
 		{#each gridItems as item (item.id)}
-			<BentoCard {item} {cornerRadius} {cols} {rows} {gridItems} onSwap={handleSwap} {onDelete} />
+			<BentoCard {item} {cornerRadius} {cols} {rows} {gridItems} onSwap={handleSwap} {onDelete} {onUpdateItem} />
 		{/each}
 	</div>
 </div>

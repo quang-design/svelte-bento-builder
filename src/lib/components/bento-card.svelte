@@ -10,6 +10,7 @@
 		gridItems?: GridItem[];
 		onSwap?: (item1: GridItem, item2: GridItem) => void;
 		onDelete?: (id: number) => void;
+		onUpdateItem?: (item: GridItem) => void;
 	};
 
 	let {
@@ -19,7 +20,8 @@
 		rows = 6,
 		gridItems = [],
 		onSwap = undefined,
-		onDelete = undefined
+		onDelete = undefined,
+		onUpdateItem = undefined
 	}: Props = $props();
 
 	item.col = item.col ?? 1;
@@ -29,7 +31,7 @@
 
 	let isDragging = $state(false);
 	let isResizing = $state(false);
-	let isHovered = $state(false);
+	let isEditing = $state(false);
 	let resizeHandle = $state<null | 'se' | 'sw' | 'ne' | 'nw'>(null);
 	let startX = $state(0);
 	let startY = $state(0);
@@ -38,10 +40,11 @@
 	let startColSpan = $state(0);
 	let startRowSpan = $state(0);
 	let originalZIndex = $state<string>('');
+	let editText = $state('');
 
 	function getCellSize() {
 		const gridContainer =
-			document.querySelector('.grid') || document.querySelector('[style*="grid-template-columns"]');
+			document.querySelector('[data-bento-grid]');
 		if (!gridContainer) return { cellWidth: 0, cellHeight: 0 };
 		return { cellWidth: gridContainer.clientWidth / cols, cellHeight: gridContainer.clientHeight / rows };
 	}
@@ -62,7 +65,7 @@
 	}
 
 	function startDrag(e: MouseEvent) {
-		if (resizeHandle) return;
+		if (resizeHandle || isEditing) return;
 		e.preventDefault();
 		isDragging = true;
 		const card = e.currentTarget as HTMLElement;
@@ -140,7 +143,7 @@
 		}
 	}
 
-	function stopDragResize(e: MouseEvent) {
+	function stopDragResize() {
 		if (isDragging) {
 			const card = document.querySelector(`[data-id="${item.id}"]`) as HTMLElement;
 			if (card) card.style.zIndex = originalZIndex;
@@ -162,6 +165,30 @@
 		if (onDelete) onDelete(item.id);
 	}
 
+	function handleDoubleClick(e: MouseEvent) {
+		e.stopPropagation();
+		e.preventDefault();
+		if (item.contentType === 'circle') return;
+		isEditing = true;
+		editText = item.content ?? '';
+	}
+
+	function finishEdit() {
+		item.content = editText;
+		isEditing = false;
+		if (onUpdateItem) onUpdateItem(item);
+	}
+
+	function handleEditKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			finishEdit();
+		}
+		if (e.key === 'Escape') {
+			isEditing = false;
+		}
+	}
+
 	$effect(() => {
 		return () => {
 			window.removeEventListener('mousemove', handleMouseMove);
@@ -176,14 +203,34 @@
 	role="gridcell"
 	tabindex="0"
 	aria-label={`Bento card ${item.id}: ${item.content ?? 'empty'}`}
-	class="card-item group relative z-10 flex h-full min-h-24 w-full cursor-move items-center justify-center overflow-hidden border border-transparent bg-neutral-900 transition-all duration-200 hover:border-avocado-500 rounded-{cornerRadius} {isDragging ? 'border-2 border-dashed opacity-75' : ''} {isResizing ? 'opacity-75' : ''}"
-	style={`grid-column: ${ensureNumberValue(item.col)} / span ${ensureNumberValue(item.colSpan)}; grid-row: ${ensureNumberValue(item.row)} / span ${ensureNumberValue(item.rowSpan)}; min-height: 80px;`}
+	class="card-item group relative z-10 flex h-full w-full cursor-move items-center justify-center overflow-hidden border border-transparent bg-neutral-900 transition-all duration-200 hover:border-avocado-500 rounded-{cornerRadius} {isDragging ? 'border-2 border-dashed opacity-75' : ''} {isResizing ? 'opacity-75' : ''}"
+	style="grid-column: {ensureNumberValue(item.col)} / span {ensureNumberValue(item.colSpan)}; grid-row: {ensureNumberValue(item.row)} / span {ensureNumberValue(item.rowSpan)};"
 	onmousedown={startDrag}
-	onmouseenter={() => (isHovered = true)}
-	onmouseleave={() => (isHovered = false)}
+	ondblclick={handleDoubleClick}
 >
 	<!-- Content rendering based on type -->
-	{#if item.contentType === 'paragraph'}
+	{#if isEditing}
+		{#if item.contentType === 'paragraph'}
+			<!-- svelte-ignore a11y_autofocus -->
+			<textarea
+				class="card-text h-full w-full resize-none bg-transparent p-6 text-sm leading-relaxed text-neutral-300 outline-none"
+				bind:value={editText}
+				onblur={finishEdit}
+				onkeydown={handleEditKeydown}
+				autofocus
+			></textarea>
+		{:else}
+			<!-- svelte-ignore a11y_autofocus -->
+			<input
+				type="text"
+				class="card-text w-full bg-transparent text-center text-3xl font-bold text-white outline-none md:text-5xl"
+				bind:value={editText}
+				onblur={finishEdit}
+				onkeydown={handleEditKeydown}
+				autofocus
+			/>
+		{/if}
+	{:else if item.contentType === 'paragraph'}
 		<p class="card-text p-6 text-sm leading-relaxed text-neutral-300">{item.content}</p>
 	{:else if item.contentType === 'circle'}
 		<div class="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
@@ -205,49 +252,43 @@
 	{/if}
 
 	<!-- Delete button (visible on hover) -->
-	<button
-		class="absolute top-2 right-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
-		onclick={handleDelete}
-		aria-label="Delete card"
-	>
-		<X class="h-3.5 w-3.5" />
-	</button>
+	{#if !isEditing}
+		<button
+			class="absolute top-2 right-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+			onclick={handleDelete}
+			aria-label="Delete card"
+		>
+			<X class="h-3.5 w-3.5" />
+		</button>
+	{/if}
 
-	<!-- Resize handles -->
+	<!-- Resize handles (invisible, cursor-only zones) -->
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from bottom-right"
-		class="resize-handle hover:bg-avocado-500/50 absolute right-0 bottom-0 h-5 w-5 cursor-se-resize rounded-sm bg-white/20 opacity-0 transition-opacity group-hover:opacity-100"
+		class="absolute right-0 bottom-0 z-20 h-4 w-4 cursor-se-resize"
 		onmousedown={(e) => startResize(e, 'se')}
-	>
-		<div class="absolute right-0 bottom-0 h-3 w-3 border-r-2 border-b-2 border-white/50"></div>
-	</div>
+	></div>
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from bottom-left"
-		class="resize-handle hover:bg-avocado-500/50 absolute bottom-0 left-0 h-5 w-5 cursor-sw-resize rounded-sm bg-white/20 opacity-0 transition-opacity group-hover:opacity-100"
+		class="absolute bottom-0 left-0 z-20 h-4 w-4 cursor-sw-resize"
 		onmousedown={(e) => startResize(e, 'sw')}
-	>
-		<div class="absolute bottom-0 left-0 h-3 w-3 border-b-2 border-l-2 border-white/50"></div>
-	</div>
+	></div>
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from top-right"
-		class="resize-handle hover:bg-avocado-500/50 absolute top-0 right-0 h-5 w-5 cursor-ne-resize rounded-sm bg-white/20 opacity-0 transition-opacity group-hover:opacity-100"
+		class="absolute top-0 right-0 z-20 h-4 w-4 cursor-ne-resize"
 		onmousedown={(e) => startResize(e, 'ne')}
-	>
-		<div class="absolute top-0 right-0 h-3 w-3 border-t-2 border-r-2 border-white/50"></div>
-	</div>
+	></div>
 	<div
 		role="button"
 		tabindex="0"
 		aria-label="Resize from top-left"
-		class="resize-handle hover:bg-avocado-500/50 absolute top-0 left-0 h-5 w-5 cursor-nw-resize rounded-sm bg-white/20 opacity-0 transition-opacity group-hover:opacity-100"
+		class="absolute top-0 left-0 z-20 h-4 w-4 cursor-nw-resize"
 		onmousedown={(e) => startResize(e, 'nw')}
-	>
-		<div class="absolute top-0 left-0 h-3 w-3 border-t-2 border-l-2 border-white/50"></div>
-	</div>
+	></div>
 </div>

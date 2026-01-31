@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import NavBar from '$lib/components/nav-bar.svelte';
 	import BentoGrid from '$lib/components/bento-grid.svelte';
 	import type { CornerRadius, Gap, GridItem } from '$lib/types/bento';
@@ -8,6 +9,23 @@
 	let cornerRadius = $state<CornerRadius>('lg');
 	let gap = $state<Gap>(4);
 	let showGridLines = $state<boolean>(false);
+
+	// Responsive: clamp cols based on screen width
+	function getMaxCols(width: number): number {
+		if (width < 640) return 4;
+		if (width < 1024) return 8;
+		return 24;
+	}
+
+	onMount(() => {
+		function handleResize() {
+			const maxCols = getMaxCols(window.innerWidth);
+			if (cols > maxCols) cols = maxCols;
+		}
+		handleResize();
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	});
 
 	let gridItems = $state<GridItem[]>([
 		{
@@ -87,7 +105,6 @@
 	let nextId = $state(9);
 
 	function addCard() {
-		// Find first empty 2x1 slot
 		let placed = false;
 		for (let r = 1; r <= rows && !placed; r++) {
 			for (let c = 1; c <= cols - 1 && !placed; c++) {
@@ -96,7 +113,6 @@
 					const ir = item.row ?? 1;
 					const ics = item.colSpan ?? 1;
 					const irs = item.rowSpan ?? 1;
-					// Check if either cell (c,r) or (c+1,r) overlaps this item
 					for (let dc = 0; dc < 2; dc++) {
 						if (c + dc >= ic && c + dc < ic + ics && r >= ir && r < ir + irs) return true;
 					}
@@ -120,7 +136,6 @@
 			}
 		}
 		if (!placed) {
-			// Expand rows and place at new row
 			rows += 1;
 			gridItems = [
 				...gridItems,
@@ -140,13 +155,17 @@
 	function deleteCard(id: number) {
 		gridItems = gridItems.filter((item) => item.id !== id);
 	}
+
+	function updateItem(updated: GridItem) {
+		gridItems = gridItems.map((item) => (item.id === updated.id ? { ...updated } : item));
+	}
 </script>
 
 <main
-	class="flex min-h-screen flex-col bg-neutral-950 transition-colors duration-300 dark:bg-neutral-950"
+	class="flex min-h-screen flex-col bg-neutral-950 pb-16 transition-colors duration-300 dark:bg-neutral-950"
 >
 	<section class="flex flex-1 flex-col items-center justify-center px-4 py-8">
-		<BentoGrid {cols} {rows} {cornerRadius} {gridItems} {gap} {showGridLines} onDelete={deleteCard} />
+		<BentoGrid {cols} {rows} {cornerRadius} {gridItems} {gap} {showGridLines} onDelete={deleteCard} onUpdateItem={updateItem} />
 	</section>
 </main>
 
@@ -168,17 +187,13 @@
 	}
 	:global(html.light .card-item span),
 	:global(html.light .card-item p),
+	:global(html.light .card-item input),
+	:global(html.light .card-item textarea),
 	:global(html.light .card-item .card-text) {
 		color: #171717 !important;
 	}
 	:global(html.light .card-item .circle-shape) {
 		background-color: #171717 !important;
-	}
-	:global(html.light .card-item .resize-handle) {
-		background-color: rgb(0 0 0 / 0.15) !important;
-	}
-	:global(html.light .card-item .resize-handle div) {
-		border-color: rgb(0 0 0 / 0.3) !important;
 	}
 	:global(html.light nav) {
 		background-color: rgb(245 245 245 / 0.9) !important;
