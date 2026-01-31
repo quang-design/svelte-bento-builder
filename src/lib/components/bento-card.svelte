@@ -180,28 +180,26 @@
 			const itemColSpan = ensureNumberValue(item.colSpan);
 			const itemRowSpan = ensureNumberValue(item.rowSpan);
 			item.col = Math.max(1, Math.min(cols - itemColSpan + 1, startCol + deltaX));
-			item.row = Math.max(1, Math.min(rows - itemRowSpan + 1, startRow + deltaY));
+			item.row = Math.max(1, startRow + deltaY);
 		} else if (isResizing) {
 			switch (resizeHandle) {
 				case 'se': {
 					const ic = ensureNumberValue(item.col);
-					const ir = ensureNumberValue(item.row);
 					item.colSpan = Math.max(1, Math.min(cols - ic + 1, startColSpan + deltaX));
-					item.rowSpan = Math.max(1, Math.min(rows - ir + 1, startRowSpan + deltaY));
+					item.rowSpan = Math.max(1, startRowSpan + deltaY);
 					break;
 				}
 				case 'sw': {
-					const ir = ensureNumberValue(item.row);
 					const newColSpan = Math.max(1, startColSpan - deltaX);
 					item.col = Math.max(1, Math.min(cols - newColSpan + 1, startCol + deltaX));
 					item.colSpan = newColSpan;
-					item.rowSpan = Math.max(1, Math.min(rows - ir + 1, startRowSpan + deltaY));
+					item.rowSpan = Math.max(1, startRowSpan + deltaY);
 					break;
 				}
 				case 'ne': {
 					const ic = ensureNumberValue(item.col);
 					const newRowSpan = Math.max(1, startRowSpan - deltaY);
-					item.row = Math.max(1, Math.min(rows - newRowSpan + 1, startRow + deltaY));
+					item.row = Math.max(1, startRow + deltaY);
 					item.rowSpan = newRowSpan;
 					item.colSpan = Math.max(1, Math.min(cols - ic + 1, startColSpan + deltaX));
 					break;
@@ -211,7 +209,7 @@
 					const newRowSpan = Math.max(1, startRowSpan - deltaY);
 					item.col = Math.max(1, Math.min(cols - newColSpan + 1, startCol + deltaX));
 					item.colSpan = newColSpan;
-					item.row = Math.max(1, Math.min(rows - newRowSpan + 1, startRow + deltaY));
+					item.row = Math.max(1, startRow + deltaY);
 					item.rowSpan = newRowSpan;
 					break;
 				}
