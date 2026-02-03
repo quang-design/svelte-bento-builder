@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { X } from '@lucide/svelte';
 	import type { GridItem, CornerRadius } from '$lib/types/bento';
 
@@ -11,6 +12,7 @@
 		onSwap?: (item1: GridItem, item2: GridItem) => void;
 		onDelete?: (id: number) => void;
 		onUpdateItem?: (item: GridItem) => void;
+		startInEditMode?: boolean;
 	};
 
 	let {
@@ -21,7 +23,8 @@
 		gridItems = [],
 		onSwap = undefined,
 		onDelete = undefined,
-		onUpdateItem = undefined
+		onUpdateItem = undefined,
+		startInEditMode = false
 	}: Props = $props();
 
 	item.col = item.col ?? 1;
@@ -72,7 +75,12 @@
 			const itemRow = ensureNumberValue(gridItem.row);
 			const itemColSpan = ensureNumberValue(gridItem.colSpan);
 			const itemRowSpan = ensureNumberValue(gridItem.rowSpan);
-			return col >= itemCol && col < itemCol + itemColSpan && row >= itemRow && row < itemRow + itemRowSpan;
+			return (
+				col >= itemCol &&
+				col < itemCol + itemColSpan &&
+				row >= itemRow &&
+				row < itemRow + itemRowSpan
+			);
 		});
 	}
 
@@ -223,7 +231,10 @@
 		if (isDragging) {
 			const card = document.querySelector(`[data-id="${item.id}"]`) as HTMLElement;
 			if (card) card.style.zIndex = originalZIndex;
-			const hoverCard = findCardAtPosition(ensureNumberValue(item.col), ensureNumberValue(item.row));
+			const hoverCard = findCardAtPosition(
+				ensureNumberValue(item.col),
+				ensureNumberValue(item.row)
+			);
 			if (hoverCard && onSwap) {
 				onSwap(item, hoverCard);
 			}
@@ -259,7 +270,9 @@
 	}
 
 	function finishEdit() {
+		if (!isEditing) return;
 		item.content = editText;
+		item._startInEditMode = false;
 		isEditing = false;
 		if (onUpdateItem) onUpdateItem(item);
 	}
@@ -274,10 +287,12 @@
 		}
 	}
 
-	// Deselect when clicking/tapping outside
+	// Deselect when clicking/tapping outside (edit mode is handled by onblur)
 	function handleGlobalClick(e: MouseEvent | TouchEvent) {
 		const card = document.querySelector(`[data-id="${item.id}"]`);
-		if (card && !card.contains(e.target as Node)) {
+		if (!card) return;
+		const clickedInside = card.contains(e.target as Node);
+		if (!clickedInside) {
 			isSelected = false;
 		}
 	}
@@ -294,6 +309,19 @@
 			document.removeEventListener('touchstart', handleGlobalClick);
 		};
 	});
+
+	let hasStartedInEditMode = false;
+	$effect(() => {
+		if (startInEditMode && !hasStartedInEditMode && item.contentType !== 'circle') {
+			hasStartedInEditMode = true;
+			isEditing = true;
+			editText = item.content ?? '';
+		}
+	});
+
+	function focusElement(node: HTMLElement) {
+		tick().then(() => node.focus());
+	}
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -302,8 +330,17 @@
 	role="gridcell"
 	tabindex="0"
 	aria-label={`Bento card ${item.id}: ${item.content ?? 'empty'}`}
-	class="card-item group relative z-10 flex h-full w-full items-center justify-center overflow-hidden border-2 bg-neutral-900 transition-all duration-200 rounded-{cornerRadius} {isDragging ? 'border-dashed border-avocado-400 opacity-75 cursor-grabbing' : 'cursor-grab'} {isResizing ? 'opacity-75' : ''} {isSelected ? 'border-avocado-500' : 'border-transparent hover:border-avocado-500/50'}"
-	style="grid-column: {ensureNumberValue(item.col)} / span {ensureNumberValue(item.colSpan)}; grid-row: {ensureNumberValue(item.row)} / span {ensureNumberValue(item.rowSpan)};"
+	class="card-item group relative z-10 flex h-full w-full overflow-hidden border-2 bg-neutral-900 transition-all duration-200 rounded-{cornerRadius} {item.contentType ===
+	'note'
+		? 'items-start justify-start'
+		: 'items-center justify-center'} {isDragging
+		? 'border-avocado-400 cursor-grabbing border-dashed opacity-75'
+		: 'cursor-grab'} {isResizing ? 'opacity-75' : ''} {isSelected
+		? 'border-avocado-500'
+		: 'hover:border-avocado-500/50 border-transparent'}"
+	style="grid-column: {ensureNumberValue(item.col)} / span {ensureNumberValue(
+		item.colSpan
+	)}; grid-row: {ensureNumberValue(item.row)} / span {ensureNumberValue(item.rowSpan)};"
 	onmousedown={startDrag}
 	ontouchstart={startDrag}
 	ontouchend={handleTap}
@@ -312,30 +349,36 @@
 	<!-- Content rendering based on type -->
 	{#if isEditing}
 		{#if item.contentType === 'paragraph'}
-			<!-- svelte-ignore a11y_autofocus -->
 			<textarea
 				class="card-text h-full w-full resize-none bg-transparent p-6 text-sm leading-relaxed text-neutral-300 outline-none"
 				bind:value={editText}
 				onblur={finishEdit}
 				onkeydown={handleEditKeydown}
-				autofocus
+				use:focusElement
+			></textarea>
+		{:else if item.contentType === 'note'}
+			<textarea
+				class="card-text h-full w-full resize-none bg-transparent p-3 text-base text-neutral-300 outline-none"
+				bind:value={editText}
+				onblur={finishEdit}
+				onkeydown={handleEditKeydown}
+				use:focusElement
 			></textarea>
 		{:else}
-			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				type="text"
 				class="card-text w-full bg-transparent text-center text-3xl font-bold text-white outline-none md:text-5xl"
 				bind:value={editText}
 				onblur={finishEdit}
 				onkeydown={handleEditKeydown}
-				autofocus
+				use:focusElement
 			/>
 		{/if}
 	{:else if item.contentType === 'paragraph'}
 		<p class="card-text p-6 text-sm leading-relaxed text-neutral-300">{item.content}</p>
 	{:else if item.contentType === 'circle'}
 		<div class="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
-			{#each Array(4) as _}
+			{#each Array(4) as _, i (i)}
 				<div class="circle-shape aspect-square w-16 rounded-full bg-white"></div>
 			{/each}
 		</div>
@@ -348,6 +391,14 @@
 		</div>
 	{:else if item.contentType === 'heading'}
 		<span class="card-text text-3xl font-bold text-white md:text-5xl">{item.content ?? ''}</span>
+	{:else if item.contentType === 'note'}
+		<p
+			class="card-text self-start justify-self-start p-3 text-base {item.content
+				? 'text-neutral-300'
+				: 'text-neutral-500'}"
+		>
+			{item.content || 'Type something...'}
+		</p>
 	{:else}
 		<span class="card-text text-2xl text-white">{item.content ?? ''}</span>
 	{/if}
@@ -355,7 +406,9 @@
 	<!-- Delete button (visible on hover OR when selected on mobile) -->
 	{#if !isEditing}
 		<button
-			class="absolute top-2 right-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100 {isSelected ? '!opacity-100' : ''}"
+			class="absolute top-2 right-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600 {isSelected
+				? '!opacity-100'
+				: ''}"
 			onclick={handleDelete}
 			ontouchend={handleDelete}
 			aria-label="Delete card"
@@ -373,7 +426,11 @@
 		onmousedown={(e) => startResize(e, 'se')}
 		ontouchstart={(e) => startResize(e, 'se')}
 	>
-		<div class="absolute right-1 bottom-1 h-3 w-3 border-r-2 border-b-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-br-sm"></div>
+		<div
+			class="border-avocado-500 absolute right-1 bottom-1 h-3 w-3 border-r-2 border-b-2 opacity-0 transition-opacity group-hover:opacity-80 {isSelected
+				? '!opacity-100'
+				: ''} rounded-br-sm"
+		></div>
 	</div>
 	<div
 		role="button"
@@ -383,7 +440,11 @@
 		onmousedown={(e) => startResize(e, 'sw')}
 		ontouchstart={(e) => startResize(e, 'sw')}
 	>
-		<div class="absolute bottom-1 left-1 h-3 w-3 border-l-2 border-b-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-bl-sm"></div>
+		<div
+			class="border-avocado-500 absolute bottom-1 left-1 h-3 w-3 border-b-2 border-l-2 opacity-0 transition-opacity group-hover:opacity-80 {isSelected
+				? '!opacity-100'
+				: ''} rounded-bl-sm"
+		></div>
 	</div>
 	<div
 		role="button"
@@ -393,7 +454,11 @@
 		onmousedown={(e) => startResize(e, 'ne')}
 		ontouchstart={(e) => startResize(e, 'ne')}
 	>
-		<div class="absolute top-1 right-1 h-3 w-3 border-r-2 border-t-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-tr-sm"></div>
+		<div
+			class="border-avocado-500 absolute top-1 right-1 h-3 w-3 border-t-2 border-r-2 opacity-0 transition-opacity group-hover:opacity-80 {isSelected
+				? '!opacity-100'
+				: ''} rounded-tr-sm"
+		></div>
 	</div>
 	<div
 		role="button"
@@ -403,6 +468,10 @@
 		onmousedown={(e) => startResize(e, 'nw')}
 		ontouchstart={(e) => startResize(e, 'nw')}
 	>
-		<div class="absolute top-1 left-1 h-3 w-3 border-l-2 border-t-2 border-avocado-500 opacity-0 transition-opacity group-hover:opacity-80 {isSelected ? '!opacity-100' : ''} rounded-tl-sm"></div>
+		<div
+			class="border-avocado-500 absolute top-1 left-1 h-3 w-3 border-t-2 border-l-2 opacity-0 transition-opacity group-hover:opacity-80 {isSelected
+				? '!opacity-100'
+				: ''} rounded-tl-sm"
+		></div>
 	</div>
 </div>

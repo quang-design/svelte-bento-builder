@@ -12,7 +12,7 @@ export type CornerRadius =
 	| 'full';
 export type Gap = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
-export type CardContentType = 'text' | 'heading' | 'paragraph' | 'circle' | 'typography';
+export type CardContentType = 'text' | 'heading' | 'paragraph' | 'circle' | 'typography' | 'note';
 
 export type GridItem = {
 	id: number;
@@ -24,6 +24,7 @@ export type GridItem = {
 	row?: number;
 	colSpan?: number;
 	rowSpan?: number;
+	_startInEditMode?: boolean;
 	/** Original desktop col position for responsive remapping */
 	_origCol?: number;
 	/** Original desktop colSpan for responsive remapping */

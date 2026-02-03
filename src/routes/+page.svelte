@@ -145,7 +145,8 @@
 	let gridItems = $state<GridItem[]>([
 		{
 			id: 1,
-			content: 'By exploring these success stories, individuals and organizations can identify effective techniques to emulate, pitfalls to avoid, and unique strategies that could be tailored to their own context.',
+			content:
+				'By exploring these success stories, individuals and organizations can identify effective techniques to emulate, pitfalls to avoid, and unique strategies that could be tailored to their own context.',
 			contentType: 'paragraph',
 			col: 1,
 			row: 1,
@@ -220,16 +221,17 @@
 	let nextId = $state(9);
 	const MIN_ROWS = 6;
 
-	// Auto-expand/shrink rows based on card extents
-	$effect(() => {
+	let computedRows = $derived.by(() => {
 		let maxRow = MIN_ROWS;
 		for (const item of gridItems) {
 			const r = (item.row ?? 1) + (item.rowSpan ?? 1) - 1;
 			if (r > maxRow) maxRow = r;
 		}
-		if (maxRow !== rows) {
-			rows = maxRow;
-		}
+		return maxRow;
+	});
+
+	$effect(() => {
+		rows = computedRows;
 	});
 
 	function addCard() {
@@ -287,13 +289,39 @@
 	function updateItem(updated: GridItem) {
 		gridItems = gridItems.map((item) => (item.id === updated.id ? { ...updated } : item));
 	}
+
+	function addCardAt(col: number, row: number, colSpan: number = 1, rowSpan: number = 1) {
+		gridItems = [
+			...gridItems,
+			{
+				id: nextId++,
+				content: '',
+				contentType: 'note',
+				col,
+				row,
+				colSpan,
+				rowSpan,
+				_startInEditMode: true
+			}
+		];
+	}
 </script>
 
 <main
 	class="flex min-h-screen flex-col bg-neutral-950 pb-16 transition-colors duration-300 dark:bg-neutral-950"
 >
 	<section class="flex flex-1 flex-col items-center justify-center px-4 py-8">
-		<BentoGrid {cols} {rows} {cornerRadius} {gridItems} {gap} {showGridLines} onDelete={deleteCard} onUpdateItem={updateItem} />
+		<BentoGrid
+			{cols}
+			{rows}
+			{cornerRadius}
+			bind:gridItems
+			{gap}
+			{showGridLines}
+			onDelete={deleteCard}
+			onUpdateItem={updateItem}
+			onAddCard={addCardAt}
+		/>
 	</section>
 </main>
 
